@@ -42,37 +42,33 @@ jobs:
       - name: Find available iOS Simulator
         id: find_simulator
         run: |
-          # List available iOS simulators and get the first available one
-          # Format: "iPhone 16 (45C6D5EF-1FB3-4EB2-B558-33B503ED371E) (Booted)" or "iPhone 16 (45C6D5EF-1FB3-4EB2-B558-33B503ED371E) (Shutdown)"
-          SIMULATOR_UDID=$(xcrun simctl list devices available | grep -i "iPhone" | grep -v "unavailable" | head -1 | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/' | head -1)
-          if [ -z "$SIMULATOR_UDID" ]; then
-            # Fallback: get any iOS simulator
-            SIMULATOR_UDID=$(xcrun simctl list devices available | grep -i "iOS" | grep -v "unavailable" | head -1 | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/' | head -1)
+          # Get destinations from xcodebuild and extract first iPhone simulator ID
+          DESTINATIONS=$(xcodebuild -showdestinations -project bidding-mobile-ios-sdk.xcodeproj -scheme bidding-mobile-ios-sdk 2>&1 | grep "iOS Simulator" | grep "iPhone" | head -1)
+          if [ -z "$DESTINATIONS" ]; then
+            # Fallback: get any iOS Simulator
+            DESTINATIONS=$(xcodebuild -showdestinations -project bidding-mobile-ios-sdk.xcodeproj -scheme bidding-mobile-ios-sdk 2>&1 | grep "iOS Simulator" | head -1)
           fi
-          if [ -z "$SIMULATOR_UDID" ]; then
-            echo "❌ No iOS simulator found"
-            xcrun simctl list devices available
+          if [ -z "$DESTINATIONS" ]; then
+            echo "❌ No iOS simulator found in xcodebuild destinations"
+            xcodebuild -showdestinations -project bidding-mobile-ios-sdk.xcodeproj -scheme bidding-mobile-ios-sdk 2>&1 | grep "iOS Simulator"
             exit 1
           fi
-          echo "simulator_udid=${SIMULATOR_UDID}" >> $GITHUB_OUTPUT
-          echo "✅ Found simulator UDID: ${SIMULATOR_UDID}"
-      
-      - name: Boot simulator if needed
-        run: |
-          BOOT_STATUS=$(xcrun simctl list devices | grep "${{ steps.find_simulator.outputs.simulator_udid }}" | grep -o "(Booted)" || echo "")
-          if [ -z "$BOOT_STATUS" ]; then
-            echo "Booting simulator ${{ steps.find_simulator.outputs.simulator_udid }}"
-            xcrun simctl boot "${{ steps.find_simulator.outputs.simulator_udid }}" || true
-          else
-            echo "Simulator ${{ steps.find_simulator.outputs.simulator_udid }} is already booted"
+          # Extract ID from destination line: id:2CC7CC90-EF75-4CF3-89C3-4E2690B9AF93
+          SIMULATOR_ID=$(echo "$DESTINATIONS" | sed -E 's/.*id:([A-F0-9-]+).*/\1/' | head -1)
+          if [ -z "$SIMULATOR_ID" ]; then
+            echo "❌ Could not extract simulator ID from: $DESTINATIONS"
+            exit 1
           fi
+          echo "simulator_id=${SIMULATOR_ID}" >> $GITHUB_OUTPUT
+          echo "✅ Found simulator ID: ${SIMULATOR_ID}"
+          echo "Destination: $DESTINATIONS"
       
       - name: Run tests
         run: |
           xcodebuild test \
             -project bidding-mobile-ios-sdk.xcodeproj \
             -scheme bidding-mobile-ios-sdk \
-            -destination "platform=iOS Simulator,id=${{ steps.find_simulator.outputs.simulator_udid }}" || exit 1
+            -destination "platform=iOS Simulator,id=${{ steps.find_simulator.outputs.simulator_id }}" || exit 1
       
       - name: Build XCFramework
         run: |
