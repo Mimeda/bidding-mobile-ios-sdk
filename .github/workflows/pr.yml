@@ -20,12 +20,40 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
       
+      - name: Find available iOS Simulator
+        id: find_simulator
+        run: |
+          # List available iOS simulators and get the first available one
+          # Format: "iPhone 16 (45C6D5EF-1FB3-4EB2-B558-33B503ED371E) (Booted)" or "iPhone 16 (45C6D5EF-1FB3-4EB2-B558-33B503ED371E) (Shutdown)"
+          SIMULATOR_UDID=$(xcrun simctl list devices available | grep -i "iPhone" | grep -v "unavailable" | head -1 | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/' | head -1)
+          if [ -z "$SIMULATOR_UDID" ]; then
+            # Fallback: get any iOS simulator
+            SIMULATOR_UDID=$(xcrun simctl list devices available | grep -i "iOS" | grep -v "unavailable" | head -1 | sed -E 's/.*\(([A-F0-9-]+)\).*/\1/' | head -1)
+          fi
+          if [ -z "$SIMULATOR_UDID" ]; then
+            echo "❌ No iOS simulator found"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "simulator_udid=${SIMULATOR_UDID}" >> $GITHUB_OUTPUT
+          echo "✅ Found simulator UDID: ${SIMULATOR_UDID}"
+      
+      - name: Boot simulator if needed
+        run: |
+          BOOT_STATUS=$(xcrun simctl list devices | grep "${{ steps.find_simulator.outputs.simulator_udid }}" | grep -o "(Booted)" || echo "")
+          if [ -z "$BOOT_STATUS" ]; then
+            echo "Booting simulator ${{ steps.find_simulator.outputs.simulator_udid }}"
+            xcrun simctl boot "${{ steps.find_simulator.outputs.simulator_udid }}" || true
+          else
+            echo "Simulator ${{ steps.find_simulator.outputs.simulator_udid }} is already booted"
+          fi
+      
       - name: Run unit tests with coverage
         run: |
           xcodebuild test \
             -project bidding-mobile-ios-sdk.xcodeproj \
             -scheme bidding-mobile-ios-sdk \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination "platform=iOS Simulator,id=${{ steps.find_simulator.outputs.simulator_udid }}" \
             -enableCodeCoverage YES \
             -resultBundlePath TestResults.xcresult || true
       
