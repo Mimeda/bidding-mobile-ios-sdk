@@ -43,25 +43,28 @@ jobs:
         id: find_simulator
         run: |
           # Get destinations from xcodebuild and extract first iPhone simulator ID
-          DESTINATIONS=$(xcodebuild -showdestinations -project bidding-mobile-ios-sdk.xcodeproj -scheme bidding-mobile-ios-sdk 2>&1 | grep "iOS Simulator" | grep "iPhone" | head -1)
-          if [ -z "$DESTINATIONS" ]; then
-            # Fallback: get any iOS Simulator
-            DESTINATIONS=$(xcodebuild -showdestinations -project bidding-mobile-ios-sdk.xcodeproj -scheme bidding-mobile-ios-sdk 2>&1 | grep "iOS Simulator" | head -1)
+          # xcodebuild -showdestinations outputs lines like:
+          # { platform:iOS Simulator, id:2CC7CC90-EF75-4CF3-89C3-4E2690B9AF93, OS:26.1, name:iPhone 16 }
+          DEST_LINE=$(xcodebuild -showdestinations -project bidding-mobile-ios-sdk.xcodeproj -scheme bidding-mobile-ios-sdk 2>&1 | grep "platform:iOS Simulator" | grep "iPhone" | grep -v "placeholder" | head -1)
+          if [ -z "$DEST_LINE" ]; then
+            # Fallback: get any iOS Simulator (not placeholder)
+            DEST_LINE=$(xcodebuild -showdestinations -project bidding-mobile-ios-sdk.xcodeproj -scheme bidding-mobile-ios-sdk 2>&1 | grep "platform:iOS Simulator" | grep -v "placeholder" | head -1)
           fi
-          if [ -z "$DESTINATIONS" ]; then
+          if [ -z "$DEST_LINE" ]; then
             echo "❌ No iOS simulator found in xcodebuild destinations"
-            xcodebuild -showdestinations -project bidding-mobile-ios-sdk.xcodeproj -scheme bidding-mobile-ios-sdk 2>&1 | grep "iOS Simulator"
+            xcodebuild -showdestinations -project bidding-mobile-ios-sdk.xcodeproj -scheme bidding-mobile-ios-sdk 2>&1 | grep "platform:iOS Simulator"
             exit 1
           fi
           # Extract ID from destination line: id:2CC7CC90-EF75-4CF3-89C3-4E2690B9AF93
-          SIMULATOR_ID=$(echo "$DESTINATIONS" | sed -E 's/.*id:([A-F0-9-]+).*/\1/' | head -1)
-          if [ -z "$SIMULATOR_ID" ]; then
-            echo "❌ Could not extract simulator ID from: $DESTINATIONS"
+          # Use awk to extract the id value more reliably
+          SIMULATOR_ID=$(echo "$DEST_LINE" | awk -F'id:' '{print $2}' | awk -F',' '{print $1}' | tr -d ' ')
+          if [ -z "$SIMULATOR_ID" ] || [ "$SIMULATOR_ID" = "dvtdevice-DVTiOSDeviceSimulatorPlaceholder-iphonesimulator:placeholder" ]; then
+            echo "❌ Could not extract valid simulator ID from: $DEST_LINE"
             exit 1
           fi
           echo "simulator_id=${SIMULATOR_ID}" >> $GITHUB_OUTPUT
           echo "✅ Found simulator ID: ${SIMULATOR_ID}"
-          echo "Destination: $DESTINATIONS"
+          echo "Destination line: $DEST_LINE"
       
       - name: Run tests
         run: |
