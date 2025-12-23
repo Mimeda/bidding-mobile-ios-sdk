@@ -1,0 +1,133 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [master, main, staging]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test-and-lint:
+    name: Test, Coverage & Lint
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode version
+        run: sudo xcode-select -switch /Applications/Xcode.app
+      
+      - name: Show Xcode version
+        run: xcodebuild -version
+      
+      - name: Run unit tests with coverage
+        run: |
+          xcodebuild test \
+            -project bidding-mobile-ios-sdk.xcodeproj \
+            -scheme bidding-mobile-ios-sdk \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -enableCodeCoverage YES \
+            -resultBundlePath TestResults.xcresult || true
+      
+      - name: Generate coverage report
+        run: |
+          xcrun xccov view --report --only-targets TestResults.xcresult > coverage.txt || echo "Coverage report generation failed"
+      
+      - name: Run SwiftLint
+        uses: norio-nomura/action-swiftlint@3.2.1
+        with:
+          args: --reporter github-actions-logging
+        continue-on-error: true
+        id: swiftlint
+      
+      - name: Get SwiftLint results
+        if: steps.swiftlint.outcome == 'failure'
+        run: |
+          swiftlint lint --reporter github-actions-logging > swiftlint-results.txt 2>&1 || true
+      
+      - name: Comment PR with results
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const { readFileSync } = require('fs');
+            
+            let comment = '## 📊 Test & Quality Report\n\n';
+            
+            // Test results
+            if (fs.existsSync('test-report.html')) {
+              comment += '### ✅ Tests\n';
+              comment += 'Unit tests completed. Check the [test report](artifact://test-report.html) for details.\n\n';
+            } else {
+              comment += '### ⚠️ Tests\n';
+              comment += 'Test report not available.\n\n';
+            }
+            
+            // Coverage
+            if (fs.existsSync('coverage.txt')) {
+              const coverage = readFileSync('coverage.txt', 'utf8');
+              comment += '### 📈 Code Coverage\n';
+              comment += '```\n' + coverage.substring(0, 500) + '\n```\n\n';
+            } else {
+              comment += '### ⚠️ Coverage\n';
+              comment += 'Coverage report not available.\n\n';
+            }
+            
+            // SwiftLint
+            if (fs.existsSync('swiftlint-results.txt')) {
+              const lintResults = readFileSync('swiftlint-results.txt', 'utf8');
+              if (lintResults.trim().length > 0) {
+                comment += '### ⚠️ SwiftLint Issues\n';
+                comment += '<details><summary>Click to expand</summary>\n\n';
+                comment += '```\n' + lintResults.substring(0, 2000) + '\n```\n';
+                comment += '</details>\n\n';
+              } else {
+                comment += '### ✅ SwiftLint\n';
+                comment += 'No linting issues found.\n\n';
+              }
+            } else {
+              comment += '### ✅ SwiftLint\n';
+              comment += 'Lint check passed.\n\n';
+            }
+            
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && comment.body.includes('Test & Quality Report')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            TestResults.xcresult
+            test-report.html
+            coverage.txt
+            swiftlint-results.txt
+          retention-days: 7
+

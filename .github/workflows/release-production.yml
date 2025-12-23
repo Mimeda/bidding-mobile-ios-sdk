@@ -1,0 +1,105 @@
+name: Production Release
+
+on:
+  push:
+    branches: [master, main]
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Select Xcode version
+        run: sudo xcode-select -switch /Applications/Xcode.app
+      
+      - name: Show Xcode version
+        run: xcodebuild -version
+      
+      - name: Extract version from SDKConfig
+        id: version
+        run: |
+          VERSION=$(grep -o 'static let sdkVersion = "[^"]*"' bidding-mobile-ios-sdk/SDKConfig.swift | cut -d'"' -f2)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 Version: ${VERSION}"
+          echo "🏷️  Tag: v${VERSION}"
+      
+      - name: Run tests
+        run: |
+          xcodebuild test \
+            -project bidding-mobile-ios-sdk.xcodeproj \
+            -scheme bidding-mobile-ios-sdk \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' || exit 1
+      
+      - name: Build XCFramework
+        run: |
+          chmod +x Scripts/build-xcframework.sh
+          Scripts/build-xcframework.sh
+      
+      - name: Verify XCFramework
+        run: |
+          if [ ! -f "bidding_mobile_ios_sdk.xcframework.zip" ]; then
+            echo "❌ XCFramework ZIP not found!"
+            exit 1
+          fi
+          echo "✅ XCFramework created successfully"
+          ls -lh bidding_mobile_ios_sdk.xcframework.zip
+      
+      - name: Create GitHub Release (Private Repo)
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body: |
+            ## Release ${{ steps.version.outputs.tag }}
+            
+            ### 📦 Package
+            - **XCFramework**: `bidding_mobile_ios_sdk.xcframework.zip`
+            
+            ### 📝 Installation
+            ```swift
+            dependencies: [
+                .package(url: "https://github.com/Mimeda/bidding-mobile-ios-sdk-release.git", from: "${{ steps.version.outputs.version }}")
+            ]
+            ```
+            
+            ### 🔗 Public Release
+            This release is also available in the [public repository](https://github.com/Mimeda/bidding-mobile-ios-sdk-release/releases/tag/${{ steps.version.outputs.tag }}).
+          files: |
+            bidding_mobile_ios_sdk.xcframework.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload to Public Repo
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body: |
+            ## Release ${{ steps.version.outputs.tag }}
+            
+            ### 📦 Package
+            - **XCFramework**: `bidding_mobile_ios_sdk.xcframework.zip`
+            
+            ### 📝 Installation
+            ```swift
+            dependencies: [
+                .package(url: "https://github.com/Mimeda/bidding-mobile-ios-sdk-release.git", from: "${{ steps.version.outputs.version }}")
+            ]
+            ```
+          files: |
+            bidding_mobile_ios_sdk.xcframework.zip
+          draft: false
+          prerelease: false
+          repository: Mimeda/bidding-mobile-ios-sdk-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+
