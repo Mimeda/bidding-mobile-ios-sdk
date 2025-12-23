@@ -9,6 +9,10 @@ jobs:
   test-and-lint:
     name: Test, Coverage & Lint
     runs-on: macos-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     
     steps:
       - name: Checkout code
