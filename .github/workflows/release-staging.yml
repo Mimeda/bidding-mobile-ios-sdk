@@ -40,7 +40,7 @@ jobs:
           xcodebuild test \
             -project bidding-mobile-ios-sdk.xcodeproj \
             -scheme bidding-mobile-ios-sdk \
-            -destination 'platform=iOS Simulator,name=iPhone 15' || exit 1
+            -destination 'platform=iOS Simulator,name=iPhone 16' || exit 1
       
       - name: Build XCFramework
         run: |
