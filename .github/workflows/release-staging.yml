@@ -129,6 +129,12 @@ jobs:
           git tag -a "${{ steps.version.outputs.tag }}" -m "Beta Release ${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
       
+      - name: Push tag to public repository
+        run: |
+          # Add public repository as remote and push tag
+          git remote add public-repo https://${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/Mimeda/bidding-mobile-ios-sdk-release.git || git remote set-url public-repo https://${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/Mimeda/bidding-mobile-ios-sdk-release.git
+          git push public-repo "${{ steps.version.outputs.tag }}" || echo "Tag may already exist in public repo"
+      
       - name: Create GitHub Release (Private Repo)
         uses: softprops/action-gh-release@v1
         with:
@@ -160,7 +166,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Check if public repo has commits
+        id: check_public_repo
+        run: |
+          # Check if public repository has any commits
+          if git ls-remote --heads --tags https://${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/Mimeda/bidding-mobile-ios-sdk-release.git | grep -q .; then
+            echo "has_commits=true" >> $GITHUB_OUTPUT
+            echo "✅ Public repository has commits"
+          else
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Public repository is empty - release creation may fail"
+          fi
+      
       - name: Upload to Public Repo
+        if: steps.check_public_repo.outputs.has_commits == 'true'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.tag }}
@@ -188,4 +207,10 @@ jobs:
           repository: Mimeda/bidding-mobile-ios-sdk-release
         env:
           GITHUB_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+      
+      - name: Warn if public repo is empty
+        if: steps.check_public_repo.outputs.has_commits == 'false'
+        run: |
+          echo "⚠️ Public repository is empty. Please create at least one commit in the public repository before creating releases."
+          echo "Tag has been pushed to public repository, but release creation was skipped."
 
