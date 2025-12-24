@@ -105,9 +105,16 @@ jobs:
           echo "✅ XCFramework created successfully"
           ls -lh bidding_mobile_ios_sdk.xcframework.zip
       
+      - name: Calculate XCFramework checksum
+        id: checksum
+        run: |
+          CHECKSUM=$(swift package compute-checksum bidding_mobile_ios_sdk.xcframework.zip)
+          echo "checksum=${CHECKSUM}" >> $GITHUB_OUTPUT
+          echo "✅ Checksum calculated: ${CHECKSUM}"
+      
       - name: Create binary Package.swift for public repo
         run: |
-          cat > Package.swift << 'EOF'
+          cat > Package.swift << EOF
           // swift-tools-version: 5.7
           // The swift-tools-version declares the minimum version of Swift required to build this package.
           
@@ -128,12 +135,13 @@ jobs:
               targets: [
                   .binaryTarget(
                       name: "bidding-mobile-ios-sdk",
-                      path: "bidding_mobile_ios_sdk.xcframework.zip"
+                      url: "https://github.com/Mimeda/bidding-mobile-ios-sdk-release/releases/download/${{ steps.version.outputs.tag }}/bidding_mobile_ios_sdk.xcframework.zip",
+                      checksum: "${{ steps.checksum.outputs.checksum }}"
                   ),
               ]
           )
           EOF
-          echo "✅ Binary Package.swift created"
+          echo "✅ Binary Package.swift created with checksum"
           cat Package.swift
       
       - name: Check if tag exists
@@ -155,12 +163,6 @@ jobs:
           git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
       
-      - name: Push tag to public repository
-        run: |
-          # Add public repository as remote and push tag
-          git remote add public-repo https://${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/Mimeda/bidding-mobile-ios-sdk-release.git || git remote set-url public-repo https://${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/Mimeda/bidding-mobile-ios-sdk-release.git
-          git push public-repo "${{ steps.version.outputs.tag }}" || echo "Tag may already exist in public repo"
-      
       - name: Push binary Package.swift and XCFramework to public repo
         run: |
           # Clone public repo to a temporary directory
@@ -168,24 +170,31 @@ jobs:
           git clone https://${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/Mimeda/bidding-mobile-ios-sdk-release.git "$TEMP_DIR"
           cd "$TEMP_DIR"
           
-          # Checkout the tag
-          git checkout "${{ steps.version.outputs.tag }}" 2>/dev/null || git checkout -b "${{ steps.version.outputs.tag }}"
-          
           # Copy binary Package.swift and XCFramework zip
           cp "${{ github.workspace }}/Package.swift" .
           cp "${{ github.workspace }}/bidding_mobile_ios_sdk.xcframework.zip" .
           
-          # Commit and push
+          # Commit and push to main/master branch first
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout main 2>/dev/null || git checkout master
           git add Package.swift bidding_mobile_ios_sdk.xcframework.zip
           git commit -m "Add binary Package.swift and XCFramework for ${{ steps.version.outputs.tag }}" || echo "No changes to commit"
           git push origin HEAD || echo "Push may have failed or no changes"
           
+          # Now create tag on this commit
+          if ! git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+            git push origin "${{ steps.version.outputs.tag }}"
+            echo "✅ Tag ${{ steps.version.outputs.tag }} created and pushed"
+          else
+            echo "⚠️ Tag ${{ steps.version.outputs.tag }} already exists"
+          fi
+          
           # Cleanup
           cd "${{ github.workspace }}"
           rm -rf "$TEMP_DIR"
-          echo "✅ Binary Package.swift and XCFramework pushed to public repo"
+          echo "✅ Binary Package.swift and XCFramework pushed to public repo with tag"
       
       - name: Create GitHub Release (Private Repo)
         uses: softprops/action-gh-release@v1
