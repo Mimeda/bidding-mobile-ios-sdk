@@ -28,8 +28,14 @@ internal struct InputValidator {
     ///   - maxLength: Maximum length (default: 1024)
     /// - Returns: Sanitized string or nil if input is nil/empty
     static func sanitizeString(_ value: String?, maxLength: Int = maxStringFieldLength) -> String? {
-        guard let value = value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return value
+        guard let value = value else {
+            return nil
+        }
+        
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            // If only whitespace, return empty string
+            return ""
         }
         
         var sanitized = value
@@ -114,8 +120,14 @@ internal struct InputValidator {
     /// - Parameter productList: Product list string
     /// - Returns: Sanitized product list or nil
     static func sanitizeProductList(_ productList: String?) -> String? {
-        guard let productList = productList, !productList.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return productList
+        guard let productList = productList else {
+            return nil
+        }
+        
+        let trimmed = productList.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            // If only whitespace, return empty string
+            return ""
         }
         
         var sanitized = productList
