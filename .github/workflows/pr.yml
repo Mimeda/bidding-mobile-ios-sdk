@@ -75,13 +75,41 @@ jobs:
           echo "Destination line: $DEST_LINE"
       
       - name: Run unit tests with coverage
+        id: run_tests
+        continue-on-error: true
         run: |
+          set +e
           xcodebuild test \
             -project bidding-mobile-ios-sdk.xcodeproj \
             -scheme bidding-mobile-ios-sdk \
             -destination "platform=iOS Simulator,id=${{ steps.find_simulator.outputs.simulator_id }}" \
             -enableCodeCoverage YES \
-            -resultBundlePath TestResults.xcresult || true
+            -resultBundlePath TestResults.xcresult 2>&1 | tee test-output.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+          echo "test_exit_code=${TEST_EXIT_CODE}" >> $GITHUB_OUTPUT
+          
+          # Check if test results file exists
+          if [ -d "TestResults.xcresult" ]; then
+            echo "✅ Test results bundle created"
+            # Extract test summary
+            xcrun xcresulttool get --format json --path TestResults.xcresult > test-results.json 2>/dev/null || true
+            # Count test failures
+            if command -v xcrun &> /dev/null; then
+              FAILED_COUNT=$(xcrun xcresulttool get --format json --path TestResults.xcresult 2>/dev/null | grep -o '"testStatus" : "failure"' | wc -l | tr -d ' ') || echo "0"
+              echo "failed_test_count=${FAILED_COUNT}" >> $GITHUB_OUTPUT
+              echo "📊 Failed test count: ${FAILED_COUNT}"
+            fi
+          else
+            echo "⚠️ Test results bundle not found"
+            echo "failed_test_count=-1" >> $GITHUB_OUTPUT
+          fi
+          
+          # Show test summary from log
+          echo "📋 Test Summary:"
+          grep -E "(Test Suite|Test Case|passed|failed)" test-output.log | tail -20 || echo "Could not extract test summary"
+          
+          # Exit with the test exit code
+          exit $TEST_EXIT_CODE
       
       - name: Generate coverage report
         run: |
@@ -116,8 +144,14 @@ jobs:
             let comment = '## 📊 Test & Quality Report\n\n';
             
             // Test results
+            const testExitCode = '${{ steps.run_tests.outcome }}';
+            if (testExitCode === 'success') {
               comment += '### ✅ Tests\n';
-            comment += 'Unit tests completed successfully. Test results are available as artifacts.\n\n';
+              comment += 'All unit tests passed successfully. Test results are available as artifacts.\n\n';
+            } else {
+              comment += '### ❌ Tests\n';
+              comment += 'Some tests failed. Please check the test output in the workflow logs.\n\n';
+            }
             
             // Coverage
             if (fs.existsSync('coverage.txt')) {
@@ -191,7 +225,8 @@ jobs:
           name: test-results
           path: |
             TestResults.xcresult
-            test-report.html
+            test-output.log
+            test-results.json
             coverage.txt
             swiftlint-results.txt
           retention-days: 7
