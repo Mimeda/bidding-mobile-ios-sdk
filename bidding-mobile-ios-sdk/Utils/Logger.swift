@@ -7,8 +7,25 @@ internal struct Logger {
     private static let category = "MimedaSDK"
     private static let osLog = OSLog(subsystem: subsystem, category: category)
     
+    private static let lock = NSLock()
+    private static var _isDebugEnabled: Bool? = nil
+    
     static var isDebugEnabled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        if let enabled = _isDebugEnabled {
+            return enabled
+        }
         return SDKConfig.debugLogging
+    }
+    
+    /// Set debug logging enabled/disabled at runtime
+    /// - Parameter enabled: true to enable debug logging, false to disable
+    static func setDebugLogging(_ enabled: Bool) {
+        lock.lock()
+        defer { lock.unlock() }
+        _isDebugEnabled = enabled
     }
     
     static func i(_ message: String) {

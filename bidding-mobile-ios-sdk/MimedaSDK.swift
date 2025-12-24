@@ -5,7 +5,7 @@ public final class MimedaSDK {
     
     public static let shared = MimedaSDK()
     
-    private var isInitialized = false
+    private var initialized = false
     private var eventTracker: EventTracker?
     private weak var errorCallback: MimedaSDKErrorCallback?
     private let lock = NSLock()
@@ -24,7 +24,7 @@ public final class MimedaSDK {
         lock.lock()
         defer { lock.unlock() }
         
-        if isInitialized {
+        if initialized {
             Logger.i("MimedaSDK is already initialized")
             return
         }
@@ -46,7 +46,7 @@ public final class MimedaSDK {
         let apiService = ApiService(client: client, environment: environment, errorCallback: errorCallback)
         eventTracker = EventTracker(apiService: apiService)
         
-        isInitialized = true
+        initialized = true
         Logger.s("MimedaSDK initialized successfully. Package: \(appPackageName), Environment: \(environment)")
     }
    
@@ -60,11 +60,11 @@ public final class MimedaSDK {
         params: EventParams = EventParams()
     ) {
         lock.lock()
-        let initialized = isInitialized
+        let isInitialized = initialized
         let tracker = eventTracker
         lock.unlock()
         
-        guard initialized else {
+        guard isInitialized else {
             Logger.e("SDK is not initialized. Call initialize() before tracking events")
             return
         }
@@ -85,11 +85,11 @@ public final class MimedaSDK {
     /// - Parameter params: Performance event params
     public func trackPerformanceImpression(params: PerformanceEventParams) {
         lock.lock()
-        let initialized = isInitialized
+        let isInitialized = initialized
         let tracker = eventTracker
         lock.unlock()
         
-        guard initialized else {
+        guard isInitialized else {
             Logger.e("SDK is not initialized. Call initialize() before tracking events")
             return
         }
@@ -108,11 +108,11 @@ public final class MimedaSDK {
     /// - Parameter params: Performance event params
     public func trackPerformanceClick(params: PerformanceEventParams) {
         lock.lock()
-        let initialized = isInitialized
+        let isInitialized = initialized
         let tracker = eventTracker
         lock.unlock()
         
-        guard initialized else {
+        guard isInitialized else {
             Logger.e("SDK is not initialized. Call initialize() before tracking events")
             return
         }
@@ -128,19 +128,28 @@ public final class MimedaSDK {
         )
     }
 
-    public func isSDKInitialized() -> Bool {
+    /// Check if SDK is initialized
+    /// - Returns: true if SDK is initialized, false otherwise
+    public func isInitialized() -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        return isInitialized
+        return initialized
     }
     
+    /// Set debug logging enabled/disabled at runtime
+    /// - Parameter enabled: true to enable debug logging, false to disable
+    public func setDebugLogging(_ enabled: Bool) {
+        Logger.setDebugLogging(enabled)
+    }
+    
+    /// Shutdown SDK and cleanup resources
     public func shutdown() {
         lock.lock()
         defer { lock.unlock() }
         
         eventTracker?.shutdown()
         eventTracker = nil
-        isInitialized = false
+        initialized = false
         Logger.i("MimedaSDK shutdown completed")
     }
 }

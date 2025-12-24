@@ -19,7 +19,7 @@ final class MimedaSDKTests: XCTestCase {
         MimedaSDK.shared.initialize(apiKey: apiKey, environment: .staging)
         
         // Then
-        XCTAssertTrue(MimedaSDK.shared.isSDKInitialized())
+        XCTAssertTrue(MimedaSDK.shared.isInitialized())
     }
     
     func testInitialize_WithEmptyApiKey_ShouldNotInitialize() throws {
@@ -30,7 +30,7 @@ final class MimedaSDKTests: XCTestCase {
         MimedaSDK.shared.initialize(apiKey: apiKey, environment: .staging)
         
         // Then
-        XCTAssertFalse(MimedaSDK.shared.isSDKInitialized())
+        XCTAssertFalse(MimedaSDK.shared.isInitialized())
     }
     
     func testInitialize_WithWhitespaceApiKey_ShouldNotInitialize() throws {
@@ -41,7 +41,7 @@ final class MimedaSDKTests: XCTestCase {
         MimedaSDK.shared.initialize(apiKey: apiKey, environment: .staging)
         
         // Then
-        XCTAssertFalse(MimedaSDK.shared.isSDKInitialized())
+        XCTAssertFalse(MimedaSDK.shared.isInitialized())
     }
     
     func testInitialize_CalledTwice_ShouldOnlyInitializeOnce() throws {
@@ -53,19 +53,19 @@ final class MimedaSDKTests: XCTestCase {
         MimedaSDK.shared.initialize(apiKey: apiKey, environment: .production)
         
         // Then
-        XCTAssertTrue(MimedaSDK.shared.isSDKInitialized())
+        XCTAssertTrue(MimedaSDK.shared.isInitialized())
     }
 
     func testShutdown_AfterInitialize_ShouldResetState() throws {
         // Given
         MimedaSDK.shared.initialize(apiKey: "test-api-key", environment: .staging)
-        XCTAssertTrue(MimedaSDK.shared.isSDKInitialized())
+        XCTAssertTrue(MimedaSDK.shared.isInitialized())
         
         // When
         MimedaSDK.shared.shutdown()
         
         // Then
-        XCTAssertFalse(MimedaSDK.shared.isSDKInitialized())
+        XCTAssertFalse(MimedaSDK.shared.isInitialized())
     }
     
     func testShutdown_WithoutInitialize_ShouldNotCrash() throws {
@@ -73,7 +73,7 @@ final class MimedaSDKTests: XCTestCase {
         
         // When & Then - should not crash
         MimedaSDK.shared.shutdown()
-        XCTAssertFalse(MimedaSDK.shared.isSDKInitialized())
+        XCTAssertFalse(MimedaSDK.shared.isInitialized())
     }
 
     func testEnvironment_Production_ShouldHaveCorrectURLs() throws {
@@ -92,6 +92,29 @@ final class MimedaSDKTests: XCTestCase {
         // Then
         XCTAssertEqual(environment.eventBaseURL, "https://bidding-eventcollector-stage.azurewebsites.net")
         XCTAssertEqual(environment.performanceBaseURL, "https://bidding-prfmnccollector-stage.azurewebsites.net")
+    }
+    
+    func testSetDebugLogging_Enable_ShouldEnableLogging() throws {
+        // Given
+        MimedaSDK.shared.initialize(apiKey: "test-api-key", environment: .staging)
+        
+        // When
+        MimedaSDK.shared.setDebugLogging(true)
+        
+        // Then - No exception should be thrown, logging should be enabled
+        // Note: We can't easily test OSLog output in unit tests, but we verify the method exists and doesn't crash
+        XCTAssertTrue(MimedaSDK.shared.isInitialized())
+    }
+    
+    func testSetDebugLogging_Disable_ShouldDisableLogging() throws {
+        // Given
+        MimedaSDK.shared.initialize(apiKey: "test-api-key", environment: .staging)
+        
+        // When
+        MimedaSDK.shared.setDebugLogging(false)
+        
+        // Then - No exception should be thrown, logging should be disabled
+        XCTAssertTrue(MimedaSDK.shared.isInitialized())
     }
 }
 

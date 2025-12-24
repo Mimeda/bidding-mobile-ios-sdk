@@ -48,6 +48,35 @@ internal final class EventTracker {
         }
     }
     
+    /// Sanitize event params
+    private func sanitizeParams(_ params: EventParams) -> EventParams {
+        return EventParams(
+            userId: InputValidator.sanitizeUserId(params.userId),
+            lineItemIds: InputValidator.sanitizeString(params.lineItemIds),
+            productList: InputValidator.sanitizeProductList(params.productList),
+            categoryId: InputValidator.sanitizeString(params.categoryId),
+            keyword: InputValidator.sanitizeKeyword(params.keyword),
+            loyaltyCard: InputValidator.sanitizeString(params.loyaltyCard),
+            transactionId: InputValidator.sanitizeString(params.transactionId),
+            totalRowCount: params.totalRowCount
+        )
+    }
+    
+    /// Sanitize performance event params
+    private func sanitizePerformanceParams(_ params: PerformanceEventParams) -> PerformanceEventParams {
+        // Note: lineItemId, creativeId, adUnit, productSku, payload are non-optional in iOS SDK
+        // but we sanitize them to ensure security
+        return PerformanceEventParams(
+            lineItemId: InputValidator.sanitizeString(params.lineItemId) ?? params.lineItemId,
+            creativeId: InputValidator.sanitizeString(params.creativeId) ?? params.creativeId,
+            adUnit: InputValidator.sanitizeString(params.adUnit) ?? params.adUnit,
+            productSku: InputValidator.sanitizeString(params.productSku) ?? params.productSku,
+            payload: InputValidator.sanitizePayload(params.payload) ?? params.payload,
+            keyword: InputValidator.sanitizeKeyword(params.keyword),
+            userId: InputValidator.sanitizeUserId(params.userId)
+        )
+    }
+    
     /// Event track
     func track(
         eventName: EventName,
@@ -67,13 +96,14 @@ internal final class EventTracker {
         serialQueue.async { [weak self] in
             guard let self = self else { return }
             
+            let sanitizedParams = self.sanitizeParams(params)
             let sessionId = self.getOrCreateSessionId()
             let anonymousId = self.getOrCreateAnonymousId()
             
             self.apiService.trackEvent(
                 eventName: eventName,
                 eventParameter: eventParameter,
-                params: params,
+                params: sanitizedParams,
                 eventType: eventType,
                 appName: DeviceInfo.shared.getAppName(),
                 deviceId: DeviceInfo.shared.getDeviceId(),
@@ -104,12 +134,13 @@ internal final class EventTracker {
         serialQueue.async { [weak self] in
             guard let self = self else { return }
             
+            let sanitizedParams = self.sanitizePerformanceParams(params)
             let sessionId = self.getOrCreateSessionId()
             let anonymousId = self.getOrCreateAnonymousId()
             
             self.apiService.trackPerformanceEvent(
                 eventType: eventType,
-                params: params,
+                params: sanitizedParams,
                 appName: DeviceInfo.shared.getAppName(),
                 deviceId: DeviceInfo.shared.getDeviceId(),
                 os: DeviceInfo.shared.getOs(),
