@@ -55,4 +55,3 @@ internal final class DeviceInfo {
         return nil
     }
 }
-

@@ -7,20 +7,29 @@ internal struct InputValidator {
     private static let maxKeywordLength = 256
     private static let maxPayloadLength = 65536
 
-    private static let scriptPattern = try! NSRegularExpression(
-        pattern: "<script[^>]*>.*?</script>",
-        options: [.caseInsensitive, .dotMatchesLineSeparators]
-    )
+    private static var scriptPattern: NSRegularExpression {
+        // swiftlint:disable:next force_try
+        return try! NSRegularExpression(
+            pattern: "<script[^>]*>.*?</script>",
+            options: [.caseInsensitive, .dotMatchesLineSeparators]
+        )
+    }
 
-    private static let htmlTagPattern = try! NSRegularExpression(
-        pattern: "<[^>]+>",
-        options: []
-    )
+    private static var htmlTagPattern: NSRegularExpression {
+        // swiftlint:disable:next force_try
+        return try! NSRegularExpression(
+            pattern: "<[^>]+>",
+            options: []
+        )
+    }
 
-    private static let sqlInjectionPattern = try! NSRegularExpression(
-        pattern: "('|--|;|/\\*|\\*/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update)",
-        options: [.caseInsensitive]
-    )
+    private static var sqlInjectionPattern: NSRegularExpression {
+        // swiftlint:disable:next force_try line_length
+        return try! NSRegularExpression(
+            pattern: "('|--|;|/\\*|\\*/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update)",
+            options: [.caseInsensitive]
+        )
+    }
 
     /// Sanitize string value
     /// - Parameters:
