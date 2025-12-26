@@ -70,7 +70,7 @@ internal final class ApiClient {
 
         Logger.d("Request: GET \(sanitizeURLForLogging(url))")
 
-        let task = session.dataTask(with: request) { data, response, error in
+        let task = session.dataTask(with: request) { _, response, error in
             if let error = error {
                 Logger.e("Request failed: \(error.localizedDescription)", error)
                 completion(.failure(error))
@@ -106,7 +106,7 @@ internal final class ApiClient {
         let semaphore = DispatchSemaphore(value: 0)
         var result: Result<HTTPURLResponse, Error>!
 
-        let task = session.dataTask(with: request) { data, response, error in
+        let task = session.dataTask(with: request) { _, response, error in
             defer { semaphore.signal() }
 
             if let error = error {

@@ -96,6 +96,7 @@ internal struct SecureStorage {
             // Nonce, ciphertext ve tag'i birleştir
             // Format: [nonce (12 bytes)][ciphertext][tag (16 bytes)]
             var encryptedData = Data()
+            // Convert nonce to Data - Xcode 16.4 compatible
             let nonceBytes = sealedBox.nonce.withUnsafeBytes { Data($0) }
             encryptedData.append(nonceBytes)
             encryptedData.append(sealedBox.ciphertext)
@@ -125,7 +126,7 @@ internal struct SecureStorage {
         }
 
         let nonceData = Data(data.prefix(12))
-        let remainingData = Data(data.suffix(from: 12))
+        let remainingData = Data(data.dropFirst(12))
 
         guard let nonce = try? AES.GCM.Nonce(data: nonceData),
               remainingData.count >= 16 else { // Minimum tag size for AES-GCM (CryptoKit uses 16 bytes)
@@ -173,7 +174,7 @@ internal struct SecureStorage {
 
         // Key yoksa yeni oluştur
         let newKey = SymmetricKey(size: .bits256)
-        let keyData = Data(newKey.withUnsafeBytes { $0 })
+        let keyData = newKey.withUnsafeBytes { Data($0) }
 
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

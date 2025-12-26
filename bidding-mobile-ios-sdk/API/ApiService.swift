@@ -1,5 +1,9 @@
 import Foundation
 
+// swiftlint:disable identifier_name function_parameter_count cyclomatic_complexity type_body_length
+// 'os' is a standard parameter name in API contexts
+// Function parameter counts and complexity are acceptable for API service methods
+
 private enum ValidationResult {
     case success
     case failure(errors: [String])
@@ -261,7 +265,8 @@ internal final class ApiService {
         )
 
         if case .failure(let errors) = validationResult {
-            let errorMessage = "Event validation failed. Event: \(eventName.value)/\(eventParameter.value), Errors: \(errors.joined(separator: ", "))"
+            let errorMessage = "Event validation failed. Event: \(eventName.value)/\(eventParameter.value), " +
+                "Errors: \(errors.joined(separator: ", "))"
             Logger.e(errorMessage)
             errorCallback?.onValidationFailed(eventName: eventName, errors: errors)
             return true
@@ -321,7 +326,8 @@ internal final class ApiService {
         )
 
         if case .failure(let errors) = validationResult {
-            let errorMessage = "Performance event validation failed. Event Type: \(eventType), Errors: \(errors.joined(separator: ", "))"
+            let errorMessage = "Performance event validation failed. Event Type: \(eventType), " +
+                "Errors: \(errors.joined(separator: ", "))"
             Logger.e(errorMessage)
             errorCallback?.onValidationFailed(eventName: nil, errors: errors)
             return true
