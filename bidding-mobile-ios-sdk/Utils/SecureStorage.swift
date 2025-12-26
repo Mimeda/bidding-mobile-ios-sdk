@@ -95,11 +95,10 @@ internal struct SecureStorage {
             let sealedBox = try AES.GCM.seal(data, using: key)
             // Nonce ve ciphertext'i birleştir
             var encryptedData = Data()
-            encryptedData.append(sealedBox.nonce.withUnsafeBytes { Data($0) })
+            let nonceBytes = Data(sealedBox.nonce.withUnsafeBytes { $0 })
+            encryptedData.append(nonceBytes)
             encryptedData.append(sealedBox.ciphertext)
-            if let tag = sealedBox.tag {
-                encryptedData.append(tag)
-            }
+            encryptedData.append(sealedBox.tag)
             return encryptedData
         } catch {
             Logger.e("Encryption failed: \(error.localizedDescription)")
@@ -119,7 +118,7 @@ internal struct SecureStorage {
         }
         
         // Nonce, ciphertext ve tag'i ayır
-        let nonceData = data.prefix(12)
+        let nonceData = Data(data.prefix(12))
         let ciphertextAndTag = data.suffix(from: 12)
         
         guard let nonce = try? AES.GCM.Nonce(data: nonceData),
@@ -166,7 +165,7 @@ internal struct SecureStorage {
         
         // Key yoksa yeni oluştur
         let newKey = SymmetricKey(size: .bits256)
-        let keyData = newKey.withUnsafeBytes { Data($0) }
+        let keyData = Data(newKey.withUnsafeBytes { $0 })
         
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
