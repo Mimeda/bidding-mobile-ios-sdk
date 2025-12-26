@@ -93,12 +93,13 @@ internal struct SecureStorage {
 
         do {
             let sealedBox = try AES.GCM.seal(data, using: key)
-            // Nonce ve ciphertext'i birleştir
+            // Nonce, ciphertext ve tag'i birleştir
+            // Format: [nonce (12 bytes)][ciphertext][tag (16 bytes)]
             var encryptedData = Data()
             let nonceBytes = Data(sealedBox.nonce.withUnsafeBytes { $0 })
             encryptedData.append(nonceBytes)
             encryptedData.append(sealedBox.ciphertext)
-            encryptedData.append(sealedBox.tag)
+            encryptedData.append(sealedBox.tag) // Tag is always 16 bytes for AES-GCM
             return encryptedData
         } catch {
             Logger.e("Encryption failed: \(error.localizedDescription)")
@@ -118,16 +119,36 @@ internal struct SecureStorage {
         }
 
         // Nonce, ciphertext ve tag'i ayır
-        let nonceData = Data(data.prefix(12))
-        let ciphertextAndTag = data.suffix(from: 12)
-
-        guard let nonce = try? AES.GCM.Nonce(data: nonceData),
-              ciphertextAndTag.count >= 16 else { // Minimum tag size
+        // Format: [nonce (12 bytes)][ciphertext][tag (16 bytes)]
+        guard data.count > 28 else { // Nonce (12) + minimum ciphertext (1) + tag (16)
             return nil
         }
 
-        let ciphertext = ciphertextAndTag.prefix(ciphertextAndTag.count - 16)
-        let tag = ciphertextAndTag.suffix(16)
+        let nonceData = Data(data.prefix(12))
+        let remainingData = data.suffix(from: 12)
+
+        guard let nonce = try? AES.GCM.Nonce(data: nonceData),
+              remainingData.count >= 16 else { // Minimum tag size for AES-GCM
+            return nil
+        }
+
+        // AES-GCM tag is always 16 bytes
+        let tagSize = 16
+        let ciphertext = remainingData.prefix(remainingData.count - tagSize)
+        let tagData = remainingData.suffix(tagSize)
+
+        do {
+            let sealedBox = try AES.GCM.SealedBox(
+                nonce: nonce,
+                ciphertext: Data(ciphertext),
+                tag: tagData
+            )
+            let decryptedData = try AES.GCM.open(sealedBox, using: key)
+            return String(data: decryptedData, encoding: .utf8)
+        } catch {
+            Logger.e("Decryption failed: \(error.localizedDescription)")
+            return nil
+        }
 
         do {
             let sealedBox = try AES.GCM.SealedBox(
