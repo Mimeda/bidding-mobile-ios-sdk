@@ -149,19 +149,6 @@ internal struct SecureStorage {
             Logger.e("Decryption failed: \(error.localizedDescription)")
             return nil
         }
-
-        do {
-            let sealedBox = try AES.GCM.SealedBox(
-                nonce: nonce,
-                ciphertext: Data(ciphertext),
-                tag: Data(tag)
-            )
-            let decryptedData = try AES.GCM.open(sealedBox, using: key)
-            return String(data: decryptedData, encoding: .utf8)
-        } catch {
-            Logger.e("Decryption failed: \(error.localizedDescription)")
-            return nil
-        }
     }
 
     // Encryption key'i Keychain'den al veya oluştur
