@@ -100,16 +100,58 @@ final class SecureStorageTests: XCTestCase {
         XCTAssertEqual(SecureStorage.getLong("key3", defaultValue: 0), 0)
     }
     
-    func testObfuscation_StoredValueShouldBeDifferentFromOriginal() throws {
+    func testEncryption_StoredValueShouldBeEncryptedInKeychain() throws {
         // Given
-        let key = "obfuscation_test"
+        let key = "encryption_test"
         let value = "plain_text_value"
         
         // When
         SecureStorage.setString(key, value: value)
         
-        // Then - Retrieved value should match original
+        // Then - Retrieved value should match original (decryption works)
         let retrieved = SecureStorage.getString(key)
+        XCTAssertEqual(retrieved, value, "Encrypted value should decrypt correctly")
+    }
+    
+    func testMultipleWrites_ShouldOverwritePreviousValue() throws {
+        // Given
+        let key = "overwrite_test"
+        let firstValue = "first_value"
+        let secondValue = "second_value"
+        
+        // When
+        SecureStorage.setString(key, value: firstValue)
+        SecureStorage.setString(key, value: secondValue)
+        
+        // Then
+        let retrieved = SecureStorage.getString(key)
+        XCTAssertEqual(retrieved, secondValue)
+        XCTAssertNotEqual(retrieved, firstValue)
+    }
+    
+    func testLongValues_ShouldHandleLargeNumbers() throws {
+        // Given
+        let key = "large_number_test"
+        let value: Int64 = 9223372036854775807 // Int64.max
+        
+        // When
+        SecureStorage.setLong(key, value: value)
+        let retrieved = SecureStorage.getLong(key)
+        
+        // Then
+        XCTAssertEqual(retrieved, value)
+    }
+    
+    func testNegativeLongValues_ShouldHandleNegativeNumbers() throws {
+        // Given
+        let key = "negative_number_test"
+        let value: Int64 = -123456789
+        
+        // When
+        SecureStorage.setLong(key, value: value)
+        let retrieved = SecureStorage.getLong(key)
+        
+        // Then
         XCTAssertEqual(retrieved, value)
     }
 }

@@ -20,6 +20,34 @@ internal final class ApiClient {
         self.session = URLSession(configuration: configuration)
     }
     
+    /// URL'i loglama için güvenli hale getirir - query parametrelerini maskele
+    /// - Parameter url: Loglanacak URL
+    /// - Returns: Query parametreleri maskelenmiş URL string
+    private func sanitizeURLForLogging(_ url: URL) -> String {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url.absoluteString
+        }
+        
+        // Query parametrelerini kaldır
+        components.queryItems = nil
+        
+        // Sadece scheme, host ve path bilgisini döndür
+        if let sanitizedURL = components.url {
+            // Query parametreleri varsa maskele
+            if url.query != nil {
+                return "\(sanitizedURL.absoluteString)?***"
+            }
+            return sanitizedURL.absoluteString
+        }
+        
+        // Fallback: sadece scheme ve host
+        if let scheme = url.scheme, let host = url.host {
+            return "\(scheme)://\(host)\(url.path)?***"
+        }
+        
+        return url.absoluteString
+    }
+    
     /// - Parameters:
     ///   - apiKey: API Key
     ///   - packageName: Uygulama paket adı
@@ -40,7 +68,7 @@ internal final class ApiClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         
-        Logger.d("Request: GET \(url.absoluteString)")
+        Logger.d("Request: GET \(sanitizeURLForLogging(url))")
         
         let task = session.dataTask(with: request) { data, response, error in
             if let error = error {
@@ -73,7 +101,7 @@ internal final class ApiClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         
-        Logger.d("Request: GET \(url.absoluteString)")
+        Logger.d("Request: GET \(sanitizeURLForLogging(url))")
         
         let semaphore = DispatchSemaphore(value: 0)
         var result: Result<HTTPURLResponse, Error>!
