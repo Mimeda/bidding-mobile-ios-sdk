@@ -115,18 +115,23 @@ jobs:
         run: |
           xcrun xccov view --report --only-targets TestResults.xcresult > coverage.txt || echo "Coverage report generation failed"
       
+      - name: Install SwiftLint
+        run: |
+          if ! command -v swiftlint &> /dev/null; then
+            echo "Installing SwiftLint via Homebrew..."
+            brew install swiftlint
+          else
+            echo "SwiftLint is already installed"
+            swiftlint version
+          fi
+      
       - name: Run SwiftLint
-        uses: norio-nomura/action-swiftlint@3.2.1
-        with:
-          args: --reporter github-actions-logging
         continue-on-error: true
         id: swiftlint
-      
-      - name: Get SwiftLint results
-        if: steps.swiftlint.outcome == 'failure'
         run: |
           if command -v swiftlint &> /dev/null; then
-            swiftlint lint --reporter github-actions-logging > swiftlint-results.txt 2>&1 || echo "SwiftLint check completed with issues" > swiftlint-results.txt
+            swiftlint lint --reporter github-actions-logging > swiftlint-results.txt 2>&1 || true
+            echo "SwiftLint check completed"
           else
             echo "SwiftLint is not installed. Skipping lint check." > swiftlint-results.txt
           fi
