@@ -1,7 +1,7 @@
 import XCTest
 @testable import bidding_mobile_ios_sdk
 
-// swiftlint:disable:file identifier_name
+// swiftlint:disable identifier_name
 // 'os' is a standard variable name in device info contexts
 
 final class DeviceInfoTests: XCTestCase {

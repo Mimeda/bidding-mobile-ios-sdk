@@ -153,3 +153,4 @@ public final class MimedaSDK {
         Logger.i("MimedaSDK shutdown completed")
     }
 }
+

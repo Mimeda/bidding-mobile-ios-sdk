@@ -18,3 +18,4 @@ public protocol MimedaSDKErrorCallback: AnyObject {
         errors: [String]
     )
 }
+

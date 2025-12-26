@@ -56,3 +56,4 @@ internal struct Logger {
         os_log("[DEBUG] %{public}@", log: osLog, type: .debug, message)
     }
 }
+
