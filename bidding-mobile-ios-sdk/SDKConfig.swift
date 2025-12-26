@@ -18,9 +18,9 @@ internal struct SDKConfig {
     
     static let productionPerformanceBaseURL = "https://performance.mlink.com.tr"
     
-    static let stagingEventBaseURL = "https://bidding-eventcollector-stage.azurewebsites.net"
+    static let stagingEventBaseURL = "https://bidding-eventcollector-stage.mlink.com.tr"
     
-    static let stagingPerformanceBaseURL = "https://bidding-prfmnccollector-stage.azurewebsites.net"
+    static let stagingPerformanceBaseURL = "https://bidding-prfmnccollector-stage.mlink.com.tr"
     
     #if DEBUG
     static let debugLogging = true
