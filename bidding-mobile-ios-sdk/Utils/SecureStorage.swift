@@ -97,7 +97,10 @@ internal struct SecureStorage {
             // Format: [nonce (12 bytes)][ciphertext][tag (16 bytes)]
             var encryptedData = Data()
             // Convert nonce to Data - Xcode 16.4 compatible
-            let nonceBytes = sealedBox.nonce.withUnsafeBytes { Data($0) }
+            // AES.GCM.Nonce is 12 bytes, extract using withUnsafeBytes
+            let nonceBytes = sealedBox.nonce.withUnsafeBytes { bufferPointer in
+                Data(bufferPointer)
+            }
             encryptedData.append(nonceBytes)
             encryptedData.append(sealedBox.ciphertext)
             encryptedData.append(sealedBox.tag)
@@ -174,7 +177,9 @@ internal struct SecureStorage {
 
         // Key yoksa yeni oluştur
         let newKey = SymmetricKey(size: .bits256)
-        let keyData = newKey.withUnsafeBytes { Data($0) }
+        let keyData = newKey.withUnsafeBytes { bufferPointer in
+            Data(bufferPointer)
+        }
 
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

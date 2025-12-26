@@ -1,6 +1,6 @@
 import Foundation
 
-// swiftlint:disable identifier_name function_parameter_count cyclomatic_complexity type_body_length
+// swiftlint:disable:file identifier_name function_parameter_count cyclomatic_complexity type_body_length
 // 'os' is a standard parameter name in API contexts
 // Function parameter counts and complexity are acceptable for API service methods
 

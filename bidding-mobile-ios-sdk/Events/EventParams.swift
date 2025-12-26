@@ -30,3 +30,4 @@ public struct EventParams {
         self.totalRowCount = totalRowCount
     }
 }
+

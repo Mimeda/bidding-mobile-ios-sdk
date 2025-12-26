@@ -23,9 +23,8 @@ internal struct InputValidator {
         )
     }
 
-    // swiftlint:disable:next line_length
     private static var sqlInjectionPattern: NSRegularExpression {
-        // swiftlint:disable:next force_try
+        // swiftlint:disable:next force_try line_length
         return try! NSRegularExpression(
             pattern: "('|--|;|/\\*|\\*/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update)",
             options: [.caseInsensitive]

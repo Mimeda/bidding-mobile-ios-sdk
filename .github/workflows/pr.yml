@@ -93,15 +93,29 @@ jobs:
             echo "✅ Test results bundle created"
             # Extract test summary
             xcrun xcresulttool get --format json --path TestResults.xcresult > test-results.json 2>/dev/null || true
-            # Count test failures
+            # Count test failures and passed tests
             if command -v xcrun &> /dev/null; then
               FAILED_COUNT=$(xcrun xcresulttool get --format json --path TestResults.xcresult 2>/dev/null | grep -o '"testStatus" : "failure"' | wc -l | tr -d ' ') || echo "0"
+              PASSED_COUNT=$(xcrun xcresulttool get --format json --path TestResults.xcresult 2>/dev/null | grep -o '"testStatus" : "success"' | wc -l | tr -d ' ') || echo "0"
+              TOTAL_COUNT=$((FAILED_COUNT + PASSED_COUNT))
               echo "failed_test_count=${FAILED_COUNT}" >> $GITHUB_OUTPUT
-              echo "📊 Failed test count: ${FAILED_COUNT}"
+              echo "passed_test_count=${PASSED_COUNT}" >> $GITHUB_OUTPUT
+              echo "total_test_count=${TOTAL_COUNT}" >> $GITHUB_OUTPUT
+              echo "📊 Test summary: ${PASSED_COUNT} passed, ${FAILED_COUNT} failed (total: ${TOTAL_COUNT})"
+              
+              # Also check test output log for "TEST FAILED" or "** TEST FAILED **"
+              if grep -q "TEST FAILED\|\\*\\* TEST FAILED \\*\\*" test-output.log 2>/dev/null; then
+                echo "tests_passed=false" >> $GITHUB_OUTPUT
+                echo "⚠️ Test failures detected in log"
+              else
+                echo "tests_passed=true" >> $GITHUB_OUTPUT
+                echo "✅ No test failures detected in log"
+              fi
             fi
           else
             echo "⚠️ Test results bundle not found"
             echo "failed_test_count=-1" >> $GITHUB_OUTPUT
+            echo "tests_passed=false" >> $GITHUB_OUTPUT
           fi
           
           # Show test summary from log
@@ -148,14 +162,42 @@ jobs:
             
             let comment = '## 📊 Test & Quality Report\n\n';
             
-            // Test results
-            const testExitCode = '${{ steps.run_tests.outcome }}';
-            if (testExitCode === 'success') {
+            // Test results - check actual test status from outputs
+            const testExitCode = '${{ steps.run_tests.outputs.test_exit_code }}';
+            const failedTestCount = '${{ steps.run_tests.outputs.failed_test_count }}';
+            const passedTestCount = '${{ steps.run_tests.outputs.passed_test_count }}';
+            const totalTestCount = '${{ steps.run_tests.outputs.total_test_count }}';
+            const testsPassedFlag = '${{ steps.run_tests.outputs.tests_passed }}';
+            
+            // Determine if tests passed
+            let testsPassed = false;
+            if (testsPassedFlag === 'true') {
+              testsPassed = true;
+            } else if (testExitCode === '0' && (failedTestCount === '0' || failedTestCount === '')) {
+              testsPassed = true;
+            } else if (testExitCode === '0' && failedTestCount && parseInt(failedTestCount) === 0) {
+              testsPassed = true;
+            }
+            
+            if (testsPassed) {
               comment += '### ✅ Tests\n';
               comment += 'All unit tests passed successfully. Test results are available as artifacts.\n\n';
+              if (totalTestCount && totalTestCount !== '0' && totalTestCount !== '') {
+                comment += `**Test Summary**: ${passedTestCount || totalTestCount} tests passed\n\n`;
+              }
             } else {
               comment += '### ❌ Tests\n';
               comment += 'Some tests failed. Please check the test output in the workflow logs.\n\n';
+              if (failedTestCount && failedTestCount !== '-1' && failedTestCount !== '0' && failedTestCount !== '') {
+                comment += `**Failed tests**: ${failedTestCount}\n`;
+              }
+              if (passedTestCount && passedTestCount !== '0' && passedTestCount !== '') {
+                comment += `**Passed tests**: ${passedTestCount}\n`;
+              }
+              if (totalTestCount && totalTestCount !== '0' && totalTestCount !== '') {
+                comment += `**Total tests**: ${totalTestCount}\n`;
+              }
+              comment += '\n';
             }
             
             // Coverage
