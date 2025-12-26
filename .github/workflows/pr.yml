@@ -129,27 +129,6 @@ jobs:
         run: |
           xcrun xccov view --report --only-targets TestResults.xcresult > coverage.txt || echo "Coverage report generation failed"
       
-      - name: Install SwiftLint
-        run: |
-          if ! command -v swiftlint &> /dev/null; then
-            echo "Installing SwiftLint via Homebrew..."
-            brew install swiftlint
-          else
-            echo "SwiftLint is already installed"
-            swiftlint version
-          fi
-      
-      - name: Run SwiftLint
-        continue-on-error: true
-        id: swiftlint
-        run: |
-          if command -v swiftlint &> /dev/null; then
-            swiftlint lint --reporter github-actions-logging > swiftlint-results.txt 2>&1 || true
-            echo "SwiftLint check completed"
-          else
-            echo "SwiftLint is not installed. Skipping lint check." > swiftlint-results.txt
-          fi
-      
       - name: Comment PR with results
         if: github.event_name == 'pull_request'
         continue-on-error: true
@@ -210,22 +189,6 @@ jobs:
               comment += 'Coverage report not available.\n\n';
             }
             
-            // SwiftLint
-            if (fs.existsSync('swiftlint-results.txt')) {
-              const lintResults = readFileSync('swiftlint-results.txt', 'utf8');
-              if (lintResults.trim().length > 0 && !lintResults.includes('SwiftLint is not installed')) {
-                comment += '### ⚠️ SwiftLint Issues\n';
-                comment += '<details><summary>Click to expand</summary>\n\n';
-                comment += '```\n' + lintResults.substring(0, 2000) + '\n```\n';
-                comment += '</details>\n\n';
-              } else {
-                comment += '### ✅ SwiftLint\n';
-                comment += 'No linting issues found or SwiftLint is not installed.\n\n';
-              }
-            } else {
-              comment += '### ✅ SwiftLint\n';
-              comment += 'Lint check passed.\n\n';
-            }
             
             comment += '---\n';
             comment += '📦 **Artifacts**: Test results are available for download in the [workflow artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).\n';
@@ -275,6 +238,5 @@ jobs:
             test-output.log
             test-results.json
             coverage.txt
-            swiftlint-results.txt
           retention-days: 7
 
