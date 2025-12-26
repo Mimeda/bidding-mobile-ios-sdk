@@ -1,7 +1,7 @@
 import Foundation
 
 internal final class EventTracker {
-    
+
     private enum Constants {
         static let sessionDurationMs = SDKConfig.sessionDurationMs
         static let keySessionId = "session_id"
@@ -9,7 +9,7 @@ internal final class EventTracker {
         static let keyAnonymousId = "anonymous_id"
         static let shutdownTimeoutSeconds: TimeInterval = 5.0
     }
-    
+
     private let apiService: ApiService
     private let serialQueue: DispatchQueue
     private var isShutdown = false
@@ -20,13 +20,13 @@ internal final class EventTracker {
         self.apiService = apiService
         self.serialQueue = DispatchQueue(label: "com.mimeda.sdk.eventtracker", qos: .utility)
     }
-    
+
     /// Session ID creator
     private func getOrCreateSessionId() -> String {
         let currentTime = Int64(Date().timeIntervalSince1970 * 1000)
         let savedSessionId = SecureStorage.getString(Constants.keySessionId)
         let savedTimestamp = SecureStorage.getLong(Constants.keySessionTimestamp, defaultValue: 0)
-        
+
         if savedSessionId == nil || (currentTime - savedTimestamp) > Int64(Constants.sessionDurationMs) {
             let newSessionId = UUID().uuidString
             SecureStorage.setString(Constants.keySessionId, value: newSessionId)
@@ -36,7 +36,7 @@ internal final class EventTracker {
             return savedSessionId!
         }
     }
-    
+
     /// Anonymous ID creator
     private func getOrCreateAnonymousId() -> String {
         if let savedAnonymousId = SecureStorage.getString(Constants.keyAnonymousId) {
@@ -47,7 +47,7 @@ internal final class EventTracker {
             return newAnonymousId
         }
     }
-    
+
     /// Sanitize event params
     private func sanitizeParams(_ params: EventParams) -> EventParams {
         return EventParams(
@@ -61,7 +61,7 @@ internal final class EventTracker {
             totalRowCount: params.totalRowCount
         )
     }
-    
+
     /// Sanitize performance event params
     private func sanitizePerformanceParams(_ params: PerformanceEventParams) -> PerformanceEventParams {
         // Note: lineItemId, creativeId, adUnit, productSku, payload are non-optional in iOS SDK
@@ -76,7 +76,7 @@ internal final class EventTracker {
             userId: InputValidator.sanitizeUserId(params.userId)
         )
     }
-    
+
     /// Event track
     func track(
         eventName: EventName,
@@ -87,19 +87,19 @@ internal final class EventTracker {
         lock.lock()
         let shutdown = isShutdown
         lock.unlock()
-        
+
         guard !shutdown else {
             Logger.e("EventTracker is shutdown, cannot track event")
             return
         }
-        
+
         serialQueue.async { [weak self] in
             guard let self = self else { return }
-            
+
             let sanitizedParams = self.sanitizeParams(params)
             let sessionId = self.getOrCreateSessionId()
             let anonymousId = self.getOrCreateAnonymousId()
-            
+
             self.apiService.trackEvent(
                 eventName: eventName,
                 eventParameter: eventParameter,
@@ -114,7 +114,7 @@ internal final class EventTracker {
             )
         }
     }
-    
+
     /// - Parameters:
     ///   - eventType: Performance event type
     ///   - params: Performance event params
@@ -125,19 +125,19 @@ internal final class EventTracker {
         lock.lock()
         let shutdown = isShutdown
         lock.unlock()
-        
+
         guard !shutdown else {
             Logger.e("EventTracker is shutdown, cannot track performance event")
             return
         }
-        
+
         serialQueue.async { [weak self] in
             guard let self = self else { return }
-            
+
             let sanitizedParams = self.sanitizePerformanceParams(params)
             let sessionId = self.getOrCreateSessionId()
             let anonymousId = self.getOrCreateAnonymousId()
-            
+
             self.apiService.trackPerformanceEvent(
                 eventType: eventType,
                 params: sanitizedParams,
@@ -150,21 +150,21 @@ internal final class EventTracker {
             )
         }
     }
-    
+
     /// EventTracker shutdown
     func shutdown() {
         lock.lock()
         isShutdown = true
         lock.unlock()
-        
+
         let semaphore = DispatchSemaphore(value: 0)
-        
+
         serialQueue.async {
             semaphore.signal()
         }
-        
+
         let result = semaphore.wait(timeout: .now() + Constants.shutdownTimeoutSeconds)
-        
+
         if result == .timedOut {
             Logger.e("EventTracker shutdown timed out")
         } else {
@@ -172,3 +172,4 @@ internal final class EventTracker {
         }
     }
 }
+

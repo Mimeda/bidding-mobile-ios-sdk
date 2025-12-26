@@ -12,7 +12,7 @@ let package = Package(
         .library(
             name: "bidding-mobile-ios-sdk",
             targets: ["bidding-mobile-ios-sdk"]
-        ),
+        )
     ],
     dependencies: [],
     targets: [
@@ -37,7 +37,7 @@ let package = Package(
             name: "bidding-mobile-ios-sdkTests",
             dependencies: ["bidding-mobile-ios-sdk"],
             path: "bidding-mobile-ios-sdkTests"
-        ),
+        )
     ]
-)
+}
 
