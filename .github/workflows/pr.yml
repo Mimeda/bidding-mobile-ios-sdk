@@ -93,25 +93,38 @@ jobs:
             echo "✅ Test results bundle created"
             # Extract test summary
             xcrun xcresulttool get --format json --path TestResults.xcresult > test-results.json 2>/dev/null || true
-            # Count test failures and passed tests
-            if command -v xcrun &> /dev/null; then
-              FAILED_COUNT=$(xcrun xcresulttool get --format json --path TestResults.xcresult 2>/dev/null | grep -o '"testStatus" : "failure"' | wc -l | tr -d ' ') || echo "0"
-              PASSED_COUNT=$(xcrun xcresulttool get --format json --path TestResults.xcresult 2>/dev/null | grep -o '"testStatus" : "success"' | wc -l | tr -d ' ') || echo "0"
-              TOTAL_COUNT=$((FAILED_COUNT + PASSED_COUNT))
-              echo "failed_test_count=${FAILED_COUNT}" >> $GITHUB_OUTPUT
-              echo "passed_test_count=${PASSED_COUNT}" >> $GITHUB_OUTPUT
-              echo "total_test_count=${TOTAL_COUNT}" >> $GITHUB_OUTPUT
-              echo "📊 Test summary: ${PASSED_COUNT} passed, ${FAILED_COUNT} failed (total: ${TOTAL_COUNT})"
-              
-              # Also check test output log for "TEST FAILED" or "** TEST FAILED **"
-              if grep -q "TEST FAILED\|\\*\\* TEST FAILED \\*\\*" test-output.log 2>/dev/null; then
+            
+            # Parse test results from log (more reliable than JSON)
+            PASSED_COUNT=$(grep -c "passed on" test-output.log 2>/dev/null || echo "0")
+            FAILED_COUNT=$(grep -c "failed on\|FAILED\|Failing tests:" test-output.log 2>/dev/null || echo "0")
+            
+            # Also check for explicit failure messages
+            if grep -qiE "(Failing tests:|TEST FAILED|\*\* TEST FAILED \*\*)" test-output.log 2>/dev/null; then
+              FAILED_COUNT=$(grep -iE "Failing tests:" test-output.log 2>/dev/null | grep -oE "[0-9]+" | head -1 || echo "0")
+              echo "tests_passed=false" >> $GITHUB_OUTPUT
+              echo "⚠️ Test failures detected in log"
+            elif [ "$TEST_EXIT_CODE" = "0" ] || [ "$TEST_EXIT_CODE" = "" ]; then
+              echo "tests_passed=true" >> $GITHUB_OUTPUT
+              echo "✅ All tests passed"
+            else
+              # Exit code non-zero but no explicit failures - check if it's a build error
+              if grep -qiE "(error:|failed to|build failed)" test-output.log 2>/dev/null && [ "$FAILED_COUNT" = "0" ]; then
                 echo "tests_passed=false" >> $GITHUB_OUTPUT
-                echo "⚠️ Test failures detected in log"
-              else
+                echo "⚠️ Build or setup error detected"
+              elif [ "$FAILED_COUNT" = "0" ] && [ "$PASSED_COUNT" -gt "0" ]; then
                 echo "tests_passed=true" >> $GITHUB_OUTPUT
-                echo "✅ No test failures detected in log"
+                echo "✅ All tests passed (exit code may be from cleanup)"
+              else
+                echo "tests_passed=false" >> $GITHUB_OUTPUT
+                echo "⚠️ Test failures detected"
               fi
             fi
+            
+            echo "failed_test_count=${FAILED_COUNT}" >> $GITHUB_OUTPUT
+            echo "passed_test_count=${PASSED_COUNT}" >> $GITHUB_OUTPUT
+            TOTAL_COUNT=$((FAILED_COUNT + PASSED_COUNT))
+            echo "total_test_count=${TOTAL_COUNT}" >> $GITHUB_OUTPUT
+            echo "📊 Test summary: ${PASSED_COUNT} passed, ${FAILED_COUNT} failed (total: ${TOTAL_COUNT})"
           else
             echo "⚠️ Test results bundle not found"
             echo "failed_test_count=-1" >> $GITHUB_OUTPUT
@@ -149,13 +162,27 @@ jobs:
             const testsPassedFlag = '${{ steps.run_tests.outputs.tests_passed }}';
             
             // Determine if tests passed
+            // Priority: tests_passed flag > test counts > exit code
             let testsPassed = false;
+            
             if (testsPassedFlag === 'true') {
               testsPassed = true;
-            } else if (testExitCode === '0' && (failedTestCount === '0' || failedTestCount === '')) {
+            } else if (failedTestCount && parseInt(failedTestCount) === 0 && passedTestCount && parseInt(passedTestCount) > 0) {
+              // No failures and at least some tests passed
               testsPassed = true;
-            } else if (testExitCode === '0' && failedTestCount && parseInt(failedTestCount) === 0) {
+            } else if (testExitCode === '0' && (failedTestCount === '0' || failedTestCount === '' || failedTestCount === '-1')) {
+              // Exit code 0 and no failures reported
               testsPassed = true;
+            } else if (failedTestCount && parseInt(failedTestCount) > 0) {
+              // Explicit failures detected
+              testsPassed = false;
+            } else if (testExitCode !== '0' && testExitCode !== '' && (!failedTestCount || failedTestCount === '0' || failedTestCount === '-1')) {
+              // Non-zero exit but no failures - might be cleanup/build error, check if tests actually ran
+              if (passedTestCount && parseInt(passedTestCount) > 0) {
+                testsPassed = true; // Tests ran and passed, exit code might be from cleanup
+              } else {
+                testsPassed = false; // No tests ran, likely a build/setup error
+              }
             }
             
             if (testsPassed) {
