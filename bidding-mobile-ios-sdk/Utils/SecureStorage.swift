@@ -98,8 +98,11 @@ internal struct SecureStorage {
             var encryptedData = Data()
             // Convert nonce to Data - Xcode 16.4 compatible
             // AES.GCM.Nonce is 12 bytes, extract using withUnsafeBytes
-            let nonceBytes = sealedBox.nonce.withUnsafeBytes { bufferPointer in
-                Data(bufferPointer)
+            var nonceBytes = Data(count: 12)
+            nonceBytes.withUnsafeMutableBytes { nonceBuffer in
+                sealedBox.nonce.withUnsafeBytes { sourceBuffer in
+                    nonceBuffer.copyBytes(from: sourceBuffer)
+                }
             }
             encryptedData.append(nonceBytes)
             encryptedData.append(sealedBox.ciphertext)
@@ -177,8 +180,11 @@ internal struct SecureStorage {
 
         // Key yoksa yeni oluştur
         let newKey = SymmetricKey(size: .bits256)
-        let keyData = newKey.withUnsafeBytes { bufferPointer in
-            Data(bufferPointer)
+        var keyData = Data(count: 32) // 256 bits = 32 bytes
+        keyData.withUnsafeMutableBytes { keyBuffer in
+            newKey.withUnsafeBytes { sourceBuffer in
+                keyBuffer.copyBytes(from: sourceBuffer)
+            }
         }
 
         let addQuery: [String: Any] = [
