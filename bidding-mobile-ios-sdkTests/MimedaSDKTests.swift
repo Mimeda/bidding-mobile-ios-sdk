@@ -90,8 +90,8 @@ final class MimedaSDKTests: XCTestCase {
         let environment = SDKEnvironment.staging
         
         // Then
-        XCTAssertEqual(environment.eventBaseURL, "https://bidding-eventcollector-stage.azurewebsites.net")
-        XCTAssertEqual(environment.performanceBaseURL, "https://bidding-prfmnccollector-stage.azurewebsites.net")
+        XCTAssertEqual(environment.eventBaseURL, "https://bidding-eventcollector-stage.mlink.com.tr")
+        XCTAssertEqual(environment.performanceBaseURL, "https://bidding-prfmnccollector-stage.mlink.com.tr")
     }
     
     func testSetDebugLogging_Enable_ShouldEnableLogging() throws {
