@@ -8,7 +8,7 @@ public enum EventName: String {
     case pdp = "pdp"
     case cart = "cart"
     case purchase = "purchase"
-    
+
     public var value: String {
         return self.rawValue
     }

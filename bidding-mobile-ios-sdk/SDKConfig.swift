@@ -30,4 +30,3 @@ internal struct SDKConfig {
 
     static let sessionDurationMs: Int = 30 * 60 * 1000
 }
-

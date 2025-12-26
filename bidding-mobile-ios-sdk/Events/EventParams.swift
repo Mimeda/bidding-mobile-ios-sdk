@@ -1,4 +1,3 @@
-
 import Foundation
 
 public struct EventParams {
@@ -10,7 +9,7 @@ public struct EventParams {
     public let loyaltyCard: String?
     public let transactionId: String?
     public let totalRowCount: Int?
-    
+
     public init(
         userId: String? = nil,
         lineItemIds: String? = nil,

@@ -2,9 +2,9 @@ import Foundation
 
 public enum SDKEnvironment {
     case production
-    
+
     case staging
-    
+
     internal var eventBaseURL: String {
         switch self {
         case .production:
@@ -13,7 +13,7 @@ public enum SDKEnvironment {
             return SDKConfig.stagingEventBaseURL
         }
     }
-    
+
     internal var performanceBaseURL: String {
         switch self {
         case .production:

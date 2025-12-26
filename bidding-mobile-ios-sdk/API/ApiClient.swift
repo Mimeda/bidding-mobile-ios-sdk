@@ -12,14 +12,14 @@ internal final class ApiClient {
     init(apiKey: String, packageName: String) {
         self.apiKey = apiKey
         self.packageName = packageName
-        
+
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = SDKConfig.readTimeout
         configuration.timeoutIntervalForResource = SDKConfig.writeTimeout
-        
+
         self.session = URLSession(configuration: configuration)
     }
-    
+
     /// URL'i loglama için güvenli hale getirir - query parametrelerini maskele
     /// - Parameter url: Loglanacak URL
     /// - Returns: Query parametreleri maskelenmiş URL string
@@ -27,10 +27,10 @@ internal final class ApiClient {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return url.absoluteString
         }
-        
+
         // Query parametrelerini kaldır
         components.queryItems = nil
-        
+
         // Sadece scheme, host ve path bilgisini döndür
         if let sanitizedURL = components.url {
             // Query parametreleri varsa maskele
@@ -39,99 +39,99 @@ internal final class ApiClient {
             }
             return sanitizedURL.absoluteString
         }
-        
+
         // Fallback: sadece scheme ve host
         if let scheme = url.scheme, let host = url.host {
             return "\(scheme)://\(host)\(url.path)?***"
         }
-        
+
         return url.absoluteString
     }
-    
+
     /// - Parameters:
     ///   - apiKey: API Key
     ///   - packageName: Uygulama paket adı
     static func createClient(apiKey: String, packageName: String) -> ApiClient {
         return ApiClient(apiKey: apiKey, packageName: packageName)
     }
-    
+
     /// - Parameters:
     ///   - url: Request URL
     ///   - completion: result callback
     func get(url: URL, completion: @escaping (Result<HTTPURLResponse, Error>) -> Void) {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        
+
         // Headers
         request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         request.setValue(packageName, forHTTPHeaderField: "X-Package-Name")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        
+
         Logger.d("Request: GET \(sanitizeURLForLogging(url))")
-        
+
         let task = session.dataTask(with: request) { data, response, error in
             if let error = error {
                 Logger.e("Request failed: \(error.localizedDescription)", error)
                 completion(.failure(error))
                 return
             }
-            
+
             guard let httpResponse = response as? HTTPURLResponse else {
                 let error = ApiError.invalidResponse
                 Logger.e("Invalid response type")
                 completion(.failure(error))
                 return
             }
-            
+
             Logger.d("Response: \(httpResponse.statusCode)")
             completion(.success(httpResponse))
         }
-        
+
         task.resume()
     }
-    
+
     /// - Parameter url: Request URL
     func getSync(url: URL) -> Result<HTTPURLResponse, Error> {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        
+
         request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         request.setValue(packageName, forHTTPHeaderField: "X-Package-Name")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        
+
         Logger.d("Request: GET \(sanitizeURLForLogging(url))")
-        
+
         let semaphore = DispatchSemaphore(value: 0)
         var result: Result<HTTPURLResponse, Error>!
-        
+
         let task = session.dataTask(with: request) { data, response, error in
             defer { semaphore.signal() }
-            
+
             if let error = error {
                 Logger.e("Request failed: \(error.localizedDescription)", error)
                 result = .failure(error)
                 return
             }
-            
+
             guard let httpResponse = response as? HTTPURLResponse else {
                 let error = ApiError.invalidResponse
                 Logger.e("Invalid response type")
                 result = .failure(error)
                 return
             }
-            
+
             Logger.d("Response: \(httpResponse.statusCode)")
             result = .success(httpResponse)
         }
-        
+
         task.resume()
         semaphore.wait()
-        
+
         return result
     }
-    
+
     /// URLSession invalidate
     func invalidate() {
         session.invalidateAndCancel()
@@ -145,7 +145,7 @@ internal enum ApiError: Error, LocalizedError {
     case timeout
     case validationFailed(errors: [String])
     case unknown
-    
+
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
@@ -163,4 +163,3 @@ internal enum ApiError: Error, LocalizedError {
         }
     }
 }
-

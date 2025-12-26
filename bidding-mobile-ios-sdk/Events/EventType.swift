@@ -1,4 +1,3 @@
-
 import Foundation
 
 /// Internal event types
