@@ -3,14 +3,16 @@ import Foundation
 internal final class ApiClient {
 
     private let session: URLSession
-    private let apiKey: String
+    // API key obfuscate edilmiş şekilde memory'de tutulur
+    private let obfuscatedApiKey: [UInt8]
     private let packageName: String
 
     /// - Parameters:
-    ///   - apiKey: API Key
+    ///   - apiKey: API Key (plain text - sadece init'te kullanılır, sonra obfuscate edilir)
     ///   - packageName: Uygulama paket adı
     init(apiKey: String, packageName: String) {
-        self.apiKey = apiKey
+        // API key'i obfuscate et (XOR ile basit obfuscation)
+        self.obfuscatedApiKey = ApiClient.obfuscate(apiKey)
         self.packageName = packageName
 
         let configuration = URLSessionConfiguration.default
@@ -18,6 +20,33 @@ internal final class ApiClient {
         configuration.timeoutIntervalForResource = SDKConfig.writeTimeout
 
         self.session = URLSession(configuration: configuration)
+    }
+    
+    /// API key'i deobfuscate eder
+    private var apiKey: String {
+        return ApiClient.deobfuscate(obfuscatedApiKey)
+    }
+    
+    /// Basit XOR obfuscation (memory dump'larda plain text görünmesini engeller)
+    private static func obfuscate(_ string: String) -> [UInt8] {
+        guard let data = string.data(using: .utf8) else {
+            return []
+        }
+        // Basit XOR key (runtime'da değişebilir, daha güvenli hale getirilebilir)
+        let key: UInt8 = 0x5A // Basit bir key
+        return data.map { $0 ^ key }
+    }
+    
+    /// Deobfuscate işlemi
+    private static func deobfuscate(_ obfuscated: [UInt8]) -> String {
+        let key: UInt8 = 0x5A
+        let deobfuscated = obfuscated.map { $0 ^ key }
+        let data = Data(deobfuscated)
+        guard let string = String(data: data, encoding: .utf8) else {
+            // Fallback: SecureStorage'dan oku
+            return SecureStorage.getString("api_key") ?? ""
+        }
+        return string
     }
 
     /// URL'i loglama için güvenli hale getirir - query parametrelerini maskele
