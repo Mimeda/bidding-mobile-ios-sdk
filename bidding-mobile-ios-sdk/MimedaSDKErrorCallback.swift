@@ -1,6 +1,5 @@
 import Foundation
 
-
 public protocol MimedaSDKErrorCallback: AnyObject {
 
     func onEventTrackingFailed(
@@ -8,12 +7,12 @@ public protocol MimedaSDKErrorCallback: AnyObject {
         eventParameter: EventParameter,
         error: Error
     )
-    
+
     func onPerformanceEventTrackingFailed(
         eventType: PerformanceEventType,
         error: Error
     )
-    
+
     func onValidationFailed(
         eventName: EventName?,
         errors: [String]

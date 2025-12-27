@@ -1,4 +1,3 @@
-
 import Foundation
 
 public struct PerformanceEventParams {
@@ -9,7 +8,7 @@ public struct PerformanceEventParams {
     public let payload: String
     public let keyword: String?
     public let userId: String?
-    
+
     public init(
         lineItemId: String,
         creativeId: String,

@@ -42,6 +42,9 @@ public final class MimedaSDK {
         
         self.errorCallback = errorCallback
         
+        // API key'i SecureStorage'a kaydet (encrypted olarak Keychain'de saklanır)
+        SecureStorage.setString("api_key", value: apiKey)
+        
         let client = ApiClient.createClient(apiKey: apiKey, packageName: appPackageName)
         let apiService = ApiService(client: client, environment: environment, errorCallback: errorCallback)
         eventTracker = EventTracker(apiService: apiService)
@@ -150,6 +153,10 @@ public final class MimedaSDK {
         eventTracker?.shutdown()
         eventTracker = nil
         initialized = false
+        
+        // API key'i temizle
+        SecureStorage.remove("api_key")
+        
         Logger.i("MimedaSDK shutdown completed")
     }
 }

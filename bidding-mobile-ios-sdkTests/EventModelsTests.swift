@@ -2,7 +2,7 @@ import XCTest
 @testable import bidding_mobile_ios_sdk
 
 final class EventModelsTests: XCTestCase {
-    
+
     func testEventName_Values_ShouldBeCorrect() throws {
         XCTAssertEqual(EventName.home.value, "home")
         XCTAssertEqual(EventName.listing.value, "listing")
@@ -11,18 +11,18 @@ final class EventModelsTests: XCTestCase {
         XCTAssertEqual(EventName.cart.value, "cart")
         XCTAssertEqual(EventName.purchase.value, "purchase")
     }
-    
+
     func testEventParameter_Values_ShouldBeCorrect() throws {
         XCTAssertEqual(EventParameter.view.value, "view")
         XCTAssertEqual(EventParameter.addToCart.value, "addtocart")
         XCTAssertEqual(EventParameter.addToFavorites.value, "addtofavorites")
         XCTAssertEqual(EventParameter.success.value, "success")
     }
-    
+
     func testEventParams_DefaultValues_ShouldBeNil() throws {
         // Given & When
         let params = EventParams()
-        
+
         // Then
         XCTAssertNil(params.userId)
         XCTAssertNil(params.lineItemIds)
@@ -33,7 +33,7 @@ final class EventModelsTests: XCTestCase {
         XCTAssertNil(params.transactionId)
         XCTAssertNil(params.totalRowCount)
     }
-    
+
     func testEventParams_WithValues_ShouldStoreCorrectly() throws {
         // Given & When
         let params = EventParams(
@@ -46,7 +46,7 @@ final class EventModelsTests: XCTestCase {
             transactionId: "trans456",
             totalRowCount: 10
         )
-        
+
         // Then
         XCTAssertEqual(params.userId, "user123")
         XCTAssertEqual(params.lineItemIds, "li1,li2")
@@ -57,7 +57,7 @@ final class EventModelsTests: XCTestCase {
         XCTAssertEqual(params.transactionId, "trans456")
         XCTAssertEqual(params.totalRowCount, 10)
     }
-    
+
     func testPerformanceEventParams_WithRequiredValues_ShouldStoreCorrectly() throws {
         // Given & When
         let params = PerformanceEventParams(
@@ -67,7 +67,7 @@ final class EventModelsTests: XCTestCase {
             productSku: "sku789",
             payload: "test-payload"
         )
-        
+
         // Then
         XCTAssertEqual(params.lineItemId, "li123")
         XCTAssertEqual(params.creativeId, "c456")
@@ -77,7 +77,7 @@ final class EventModelsTests: XCTestCase {
         XCTAssertNil(params.keyword)
         XCTAssertNil(params.userId)
     }
-    
+
     func testPerformanceEventParams_WithAllValues_ShouldStoreCorrectly() throws {
         // Given & When
         let params = PerformanceEventParams(
@@ -89,7 +89,7 @@ final class EventModelsTests: XCTestCase {
             keyword: "search-term",
             userId: "user123"
         )
-        
+
         // Then
         XCTAssertEqual(params.lineItemId, "li123")
         XCTAssertEqual(params.creativeId, "c456")
@@ -99,9 +99,9 @@ final class EventModelsTests: XCTestCase {
         XCTAssertEqual(params.keyword, "search-term")
         XCTAssertEqual(params.userId, "user123")
     }
-    
+
     // MARK: - PerformanceEventType Tests
-    
+
     func testPerformanceEventType_Endpoints_ShouldBeCorrect() throws {
         XCTAssertEqual(PerformanceEventType.impression.endpoint, "impressions")
         XCTAssertEqual(PerformanceEventType.click.endpoint, "clicks")

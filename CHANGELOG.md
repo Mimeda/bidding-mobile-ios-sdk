@@ -31,3 +31,15 @@
 - SecureStorage ile hassas veri saklama
 - Input validation
 - Thread-safe singleton yapı
+
+### Changed
+- **SecureStorage güvenlik iyileştirmeleri**
+  - UserDefaults yerine iOS Keychain kullanımına geçiş
+  - CryptoKit ile AES-GCM encryption desteği
+  - Hassas verilerin (Session ID, Anonymous ID) şifrelenmiş saklanması
+  - Keychain erişim seviyesi: `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`
+  - UserDefaults'tan Keychain'e otomatik veri migration (backward compatibility)
+- **API Client güvenlik iyileştirmeleri**
+  - URL logging'de query parametrelerinin maskelenmesi
+  - Debug loglarında hassas veri sızıntısının önlenmesi
+  - Sadece scheme, host ve path bilgisinin loglanması
