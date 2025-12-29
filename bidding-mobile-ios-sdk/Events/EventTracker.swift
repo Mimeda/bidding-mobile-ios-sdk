@@ -64,8 +64,6 @@ internal final class EventTracker {
 
     /// Sanitize performance event params
     private func sanitizePerformanceParams(_ params: PerformanceEventParams) -> PerformanceEventParams {
-        // Note: lineItemId, creativeId, adUnit, productSku, payload are non-optional in iOS SDK
-        // but we sanitize them to ensure security
         return PerformanceEventParams(
             lineItemId: InputValidator.sanitizeString(params.lineItemId) ?? params.lineItemId,
             creativeId: InputValidator.sanitizeString(params.creativeId) ?? params.creativeId,

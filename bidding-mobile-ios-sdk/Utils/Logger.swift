@@ -20,7 +20,6 @@ internal struct Logger {
         return SDKConfig.debugLogging
     }
     
-    /// Set debug logging enabled/disabled at runtime
     /// - Parameter enabled: true to enable debug logging, false to disable
     static func setDebugLogging(_ enabled: Bool) {
         lock.lock()

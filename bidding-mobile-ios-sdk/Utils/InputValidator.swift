@@ -31,7 +31,15 @@ internal struct InputValidator {
         )
     }
 
-    /// Sanitize string value
+    private static var sqlInjectionPatternForProductList: NSRegularExpression {
+        // swiftlint:disable:next force_try line_length
+        // SQL injection pattern without ; and : to allow them in product lists
+        return try! NSRegularExpression(
+            pattern: "('|--|/\\*|\\*/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update)",
+            options: [.caseInsensitive]
+        )
+    }
+
     /// - Parameters:
     ///   - value: String value to sanitize
     ///   - maxLength: Maximum length (default: 1024)
@@ -43,19 +51,16 @@ internal struct InputValidator {
 
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            // If only whitespace, return empty string
             return ""
         }
 
         var sanitized = value
 
-        // Truncate if exceeds max length
         if sanitized.count > maxLength {
             sanitized = String(sanitized.prefix(maxLength))
             Logger.i("Input truncated to \(maxLength) characters")
         }
 
-        // Remove script tags
         let scriptRange = NSRange(sanitized.startIndex..<sanitized.endIndex, in: sanitized)
         sanitized = scriptPattern.stringByReplacingMatches(
             in: sanitized,
@@ -64,7 +69,6 @@ internal struct InputValidator {
             withTemplate: ""
         )
 
-        // Remove HTML tags
         let htmlRange = NSRange(sanitized.startIndex..<sanitized.endIndex, in: sanitized)
         sanitized = htmlTagPattern.stringByReplacingMatches(
             in: sanitized,
@@ -73,16 +77,13 @@ internal struct InputValidator {
             withTemplate: ""
         )
 
-        // Remove null bytes
         sanitized = sanitized.replacingOccurrences(of: "\u{0000}", with: "")
 
-        // Sanitize SQL injection
         sanitized = sanitizeSqlInjection(sanitized) ?? sanitized
 
         return sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Sanitize SQL injection patterns
     /// - Parameter value: String value
     /// - Returns: Sanitized string or nil if input is nil/empty
     private static func sanitizeSqlInjection(_ value: String?) -> String? {
@@ -99,7 +100,6 @@ internal struct InputValidator {
         )
     }
 
-    /// Check if string contains SQL injection patterns
     /// - Parameter value: String value to check
     /// - Returns: true if contains SQL injection patterns
     static func containsSqlInjection(_ value: String?) -> Bool {
@@ -111,21 +111,18 @@ internal struct InputValidator {
         return sqlInjectionPattern.firstMatch(in: value, options: [], range: range) != nil
     }
 
-    /// Sanitize user ID
     /// - Parameter userId: User ID string
     /// - Returns: Sanitized user ID or nil
     static func sanitizeUserId(_ userId: String?) -> String? {
         return sanitizeString(userId, maxLength: maxUserIdLength)
     }
 
-    /// Sanitize keyword
     /// - Parameter keyword: Keyword string
     /// - Returns: Sanitized keyword or nil
     static func sanitizeKeyword(_ keyword: String?) -> String? {
         return sanitizeString(keyword, maxLength: maxKeywordLength)
     }
 
-    /// Sanitize product list (no SQL injection check, only script/HTML/null byte removal)
     /// - Parameter productList: Product list string
     /// - Returns: Sanitized product list or nil
     static func sanitizeProductList(_ productList: String?) -> String? {
@@ -135,13 +132,11 @@ internal struct InputValidator {
 
         let trimmed = productList.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            // If only whitespace, return empty string
             return ""
         }
 
         var sanitized = productList
 
-        // Remove script tags
         let scriptRange = NSRange(sanitized.startIndex..<sanitized.endIndex, in: sanitized)
         sanitized = scriptPattern.stringByReplacingMatches(
             in: sanitized,
@@ -150,7 +145,6 @@ internal struct InputValidator {
             withTemplate: ""
         )
 
-        // Remove HTML tags
         let htmlRange = NSRange(sanitized.startIndex..<sanitized.endIndex, in: sanitized)
         sanitized = htmlTagPattern.stringByReplacingMatches(
             in: sanitized,
@@ -159,13 +153,20 @@ internal struct InputValidator {
             withTemplate: ""
         )
 
-        // Remove null bytes
         sanitized = sanitized.replacingOccurrences(of: "\u{0000}", with: "")
+
+        // SQL injection kontrolü (; ve : karakterlerine izin veriliyor)
+        let sqlRange = NSRange(sanitized.startIndex..<sanitized.endIndex, in: sanitized)
+        sanitized = sqlInjectionPatternForProductList.stringByReplacingMatches(
+            in: sanitized,
+            options: [],
+            range: sqlRange,
+            withTemplate: ""
+        )
 
         return sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Sanitize payload
     /// - Parameter payload: Payload string
     /// - Returns: Sanitized payload or nil
     static func sanitizePayload(_ payload: String?) -> String? {

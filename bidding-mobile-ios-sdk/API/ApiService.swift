@@ -1,9 +1,5 @@
 import Foundation
 
-// swiftlint:disable identifier_name function_parameter_count cyclomatic_complexity type_body_length
-// 'os' is a standard parameter name in API contexts
-// Function parameter counts and complexity are acceptable for API service methods
-
 private enum ValidationResult {
     case success
     case failure(errors: [String])
@@ -19,7 +15,6 @@ internal final class ApiService {
     private let eventBaseURL: String
     private let performanceBaseURL: String
 
-    /// - Parameters:
     ///   - client: HTTP client
     ///   - environment: environment
     ///   - errorCallback: error callback

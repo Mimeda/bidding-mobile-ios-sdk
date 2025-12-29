@@ -1,6 +1,5 @@
 import Foundation
 
-/// Event and performance tracking
 public final class MimedaSDK {
     
     public static let shared = MimedaSDK()
@@ -12,7 +11,6 @@ public final class MimedaSDK {
     
     private init() {}
     
-    /// - Parameters:
     ///   - apiKey: API key
     ///   - environment: default: production
     ///   - errorCallback: Error callback
@@ -42,7 +40,6 @@ public final class MimedaSDK {
         
         self.errorCallback = errorCallback
         
-        // API key'i SecureStorage'a kaydet (encrypted olarak Keychain'de saklanır)
         SecureStorage.setString("api_key", value: apiKey)
         
         let client = ApiClient.createClient(apiKey: apiKey, packageName: appPackageName)
@@ -53,7 +50,6 @@ public final class MimedaSDK {
         Logger.s("MimedaSDK initialized successfully. Package: \(appPackageName), Environment: \(environment)")
     }
    
-    /// - Parameters:
     ///   - eventName: Event name
     ///   - eventParameter: Event params
     ///   - params: Optional params
@@ -85,7 +81,6 @@ public final class MimedaSDK {
         )
     }
     
-    /// - Parameter params: Performance event params
     public func trackPerformanceImpression(params: PerformanceEventParams) {
         lock.lock()
         let isInitialized = initialized
@@ -108,7 +103,6 @@ public final class MimedaSDK {
         )
     }
     
-    /// - Parameter params: Performance event params
     public func trackPerformanceClick(params: PerformanceEventParams) {
         lock.lock()
         let isInitialized = initialized
@@ -131,7 +125,6 @@ public final class MimedaSDK {
         )
     }
 
-    /// Check if SDK is initialized
     /// - Returns: true if SDK is initialized, false otherwise
     public func isInitialized() -> Bool {
         lock.lock()
@@ -139,13 +132,11 @@ public final class MimedaSDK {
         return initialized
     }
     
-    /// Set debug logging enabled/disabled at runtime
     /// - Parameter enabled: true to enable debug logging, false to disable
     public func setDebugLogging(_ enabled: Bool) {
         Logger.setDebugLogging(enabled)
     }
     
-    /// Shutdown SDK and cleanup resources
     public func shutdown() {
         lock.lock()
         defer { lock.unlock() }
@@ -154,7 +145,6 @@ public final class MimedaSDK {
         eventTracker = nil
         initialized = false
         
-        // API key'i temizle
         SecureStorage.remove("api_key")
         
         Logger.i("MimedaSDK shutdown completed")
