@@ -19,12 +19,6 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Select Xcode version
-        run: sudo xcode-select -switch /Applications/Xcode.app
-      
-      - name: Show Xcode version
-        run: xcodebuild -version
-      
       - name: Extract version from SDKConfig
         id: version
         run: |
@@ -33,6 +27,38 @@ jobs:
           echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
           echo "📦 Version: ${VERSION}"
           echo "🏷️  Tag: v${VERSION}"
+      
+      - name: Check if tag exists in private repo (duplicate version check)
+        id: check_tag_private
+        run: |
+          if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "❌ ERROR: Duplicate version detected in private repository!"
+            echo "Tag ${{ steps.version.outputs.tag }} already exists in the repository."
+            echo "Please update the version in SDKConfig.swift before creating a new release."
+            exit 1
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Tag ${{ steps.version.outputs.tag }} does not exist in private repo - proceeding with release"
+          fi
+      
+      - name: Check if tag exists in public repo (duplicate version check)
+        id: check_tag_public
+        run: |
+          if git ls-remote --tags https://${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/Mimeda/bidding-mobile-ios-sdk-release.git | grep -q "refs/tags/${{ steps.version.outputs.tag }}$"; then
+            echo "❌ ERROR: Duplicate version detected in public repository!"
+            echo "Tag ${{ steps.version.outputs.tag }} already exists in the public repository."
+            echo "Please update the version in SDKConfig.swift before creating a new release."
+            exit 1
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Tag ${{ steps.version.outputs.tag }} does not exist in public repo - proceeding with release"
+          fi
+      
+      - name: Select Xcode version
+        run: sudo xcode-select -switch /Applications/Xcode.app
+      
+      - name: Show Xcode version
+        run: xcodebuild -version
       
       - name: List available simulators
         run: |
@@ -144,19 +170,7 @@ jobs:
           echo "✅ Binary Package.swift created with checksum"
           cat Package.swift
       
-      - name: Check if tag exists
-        id: check_tag
-        run: |
-          if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "⚠️ Tag ${{ steps.version.outputs.tag }} already exists"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "✅ Tag ${{ steps.version.outputs.tag }} does not exist"
-          fi
-      
-      - name: Create tag if not exists
-        if: steps.check_tag.outputs.exists == 'false'
+      - name: Create tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -182,14 +196,10 @@ jobs:
           git commit -m "Add binary Package.swift and XCFramework for ${{ steps.version.outputs.tag }}" || echo "No changes to commit"
           git push origin HEAD || echo "Push may have failed or no changes"
           
-          # Now create tag on this commit
-          if ! git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
-            git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
-            git push origin "${{ steps.version.outputs.tag }}"
-            echo "✅ Tag ${{ steps.version.outputs.tag }} created and pushed"
-          else
-            echo "⚠️ Tag ${{ steps.version.outputs.tag }} already exists"
-          fi
+          # Create tag on this commit
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+          echo "✅ Tag ${{ steps.version.outputs.tag }} created and pushed to public repo"
           
           # Cleanup
           cd "${{ github.workspace }}"
