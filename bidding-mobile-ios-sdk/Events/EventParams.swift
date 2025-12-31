@@ -1,6 +1,7 @@
 import Foundation
 
 public struct EventParams {
+    public let app: String?
     public let userId: String?
     public let lineItemIds: String?
     public let productList: String?
@@ -11,6 +12,7 @@ public struct EventParams {
     public let totalRowCount: Int?
 
     public init(
+        app: String? = nil,
         userId: String? = nil,
         lineItemIds: String? = nil,
         productList: String? = nil,
@@ -20,6 +22,7 @@ public struct EventParams {
         transactionId: String? = nil,
         totalRowCount: Int? = nil
     ) {
+        self.app = app
         self.userId = userId
         self.lineItemIds = lineItemIds
         self.productList = productList
