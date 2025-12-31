@@ -81,7 +81,10 @@ public final class MimedaSDK {
         )
     }
     
-    public func trackPerformanceImpression(params: PerformanceEventParams) {
+    ///   - params: Performance event params
+    public func trackPerformanceImpression(
+        params: PerformanceEventParams
+    ) {
         lock.lock()
         let isInitialized = initialized
         let tracker = eventTracker
@@ -103,7 +106,10 @@ public final class MimedaSDK {
         )
     }
     
-    public func trackPerformanceClick(params: PerformanceEventParams) {
+    ///   - params: Performance event params
+    public func trackPerformanceClick(
+        params: PerformanceEventParams
+    ) {
         lock.lock()
         let isInitialized = initialized
         let tracker = eventTracker

@@ -51,6 +51,7 @@ internal final class EventTracker {
     /// Sanitize event params
     private func sanitizeParams(_ params: EventParams) -> EventParams {
         return EventParams(
+            app: params.app,
             userId: InputValidator.sanitizeUserId(params.userId),
             lineItemIds: InputValidator.sanitizeString(params.lineItemIds),
             productList: InputValidator.sanitizeProductList(params.productList),
@@ -65,11 +66,12 @@ internal final class EventTracker {
     /// Sanitize performance event params
     private func sanitizePerformanceParams(_ params: PerformanceEventParams) -> PerformanceEventParams {
         return PerformanceEventParams(
-            lineItemId: InputValidator.sanitizeString(params.lineItemId) ?? params.lineItemId,
-            creativeId: InputValidator.sanitizeString(params.creativeId) ?? params.creativeId,
-            adUnit: InputValidator.sanitizeString(params.adUnit) ?? params.adUnit,
-            productSku: InputValidator.sanitizeString(params.productSku) ?? params.productSku,
-            payload: InputValidator.sanitizePayload(params.payload) ?? params.payload,
+            app: params.app,
+            lineItemId: InputValidator.sanitizeString(params.lineItemId),
+            creativeId: InputValidator.sanitizeString(params.creativeId),
+            adUnit: InputValidator.sanitizeString(params.adUnit),
+            productSku: InputValidator.sanitizeString(params.productSku),
+            payload: params.payload, // Payload sanitize edilmeden olduğu gibi bırakılıyor
             keyword: InputValidator.sanitizeKeyword(params.keyword),
             userId: InputValidator.sanitizeUserId(params.userId)
         )
@@ -103,7 +105,6 @@ internal final class EventTracker {
                 eventParameter: eventParameter,
                 params: sanitizedParams,
                 eventType: eventType,
-                appName: DeviceInfo.shared.getAppName(),
                 deviceId: DeviceInfo.shared.getDeviceId(),
                 os: DeviceInfo.shared.getOs(),
                 language: DeviceInfo.shared.getLanguage(),
@@ -139,7 +140,6 @@ internal final class EventTracker {
             self.apiService.trackPerformanceEvent(
                 eventType: eventType,
                 params: sanitizedParams,
-                appName: DeviceInfo.shared.getAppName(),
                 deviceId: DeviceInfo.shared.getDeviceId(),
                 os: DeviceInfo.shared.getOs(),
                 language: DeviceInfo.shared.getLanguage(),

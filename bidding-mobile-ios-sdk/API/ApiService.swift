@@ -44,7 +44,6 @@ internal final class ApiService {
         eventName: EventName,
         eventParameter: EventParameter,
         params: EventParams,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
@@ -54,7 +53,6 @@ internal final class ApiService {
         var errors: [String] = []
 
         if SDKConfig.sdkVersion.isEmpty { errors.append("v (SdkVersion) is required") }
-        if appName.isEmpty { errors.append("app (AppId) is required") }
         if deviceId.isEmpty { errors.append("d (DeviceId) is required") }
         if os.isEmpty { errors.append("os (Os) is required") }
         if language.isEmpty { errors.append("lng (Language) is required") }
@@ -62,6 +60,7 @@ internal final class ApiService {
         if anonymousId?.isEmpty ?? true { errors.append("aid (AnonymousId) is required") }
         if eventName.value.isEmpty { errors.append("en (EventName) is required") }
         if eventParameter.value.isEmpty { errors.append("ep (EventParameter) is required") }
+        // app parametresi optional olduğu için validation kontrolü yapılmıyor
 
         return errors.isEmpty ? .success : .failure(errors: errors)
     }
@@ -69,7 +68,6 @@ internal final class ApiService {
     /// Performance event validate
     private func validatePerformanceEventParams(
         params: PerformanceEventParams,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
@@ -79,17 +77,12 @@ internal final class ApiService {
         var errors: [String] = []
 
         if SDKConfig.sdkVersion.isEmpty { errors.append("v (SdkVersion) is required") }
-        if appName.isEmpty { errors.append("app (AppId) is required") }
         if deviceId.isEmpty { errors.append("d (DeviceId) is required") }
         if os.isEmpty { errors.append("os (Os) is required") }
         if language.isEmpty { errors.append("lng (Language) is required") }
         if sessionId?.isEmpty ?? true { errors.append("s (SessionId) is required") }
         if anonymousId?.isEmpty ?? true { errors.append("aid (AnonymousId) is required") }
-        if params.lineItemId.isEmpty { errors.append("li (LineItemId) is required") }
-        if params.creativeId.isEmpty { errors.append("c (CreativeId) is required") }
-        if params.adUnit.isEmpty { errors.append("au (AdUnit) is required") }
-        if params.productSku.isEmpty { errors.append("psku (ProductSku) is required") }
-        if params.payload.isEmpty { errors.append("pyl (Payload) is required") }
+        // app parametresi ve kullanıcı tarafından gelen değerler (lineItemId, creativeId, adUnit, productSku, payload) optional olduğu için validation kontrolü yapılmıyor
 
         return errors.isEmpty ? .success : .failure(errors: errors)
     }
@@ -99,7 +92,6 @@ internal final class ApiService {
         eventName: EventName,
         eventParameter: EventParameter,
         params: EventParams,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
@@ -111,7 +103,6 @@ internal final class ApiService {
         let timestamp = String(Int64(Date().timeIntervalSince1970 * 1000))
 
         queryParams["v"] = SDKConfig.sdkVersion
-        queryParams["app"] = appName
         queryParams["t"] = timestamp
         queryParams["d"] = deviceId
         queryParams["os"] = os
@@ -120,6 +111,7 @@ internal final class ApiService {
         queryParams["ep"] = eventParameter.value
         queryParams["tid"] = traceId
 
+        if let app = params.app, !app.isEmpty { queryParams["app"] = app }
         if let anonymousId = anonymousId { queryParams["aid"] = anonymousId }
         if let userId = params.userId { queryParams["uid"] = userId }
         if let lineItemIds = params.lineItemIds { queryParams["li"] = lineItemIds }
@@ -135,41 +127,41 @@ internal final class ApiService {
     }
 
     /// Performance event query params
+    /// - Returns: Tuple containing query params dictionary and raw payload string
     private func buildPerformanceQueryParams(
         params: PerformanceEventParams,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
         sessionId: String?,
         anonymousId: String?
-    ) -> [String: String] {
+    ) -> (queryParams: [String: String], rawPayload: String?) {
         var queryParams: [String: String] = [:]
         let traceId = UUID().uuidString
         let timestamp = String(Int64(Date().timeIntervalSince1970 * 1000))
 
         queryParams["v"] = SDKConfig.sdkVersion
-        queryParams["li"] = params.lineItemId
-        queryParams["c"] = params.creativeId
-        queryParams["au"] = params.adUnit
-        queryParams["psku"] = params.productSku
-        queryParams["pyl"] = params.payload
         queryParams["t"] = timestamp
         queryParams["os"] = os
-        queryParams["app"] = appName
         queryParams["d"] = deviceId
         queryParams["lng"] = language
         queryParams["tid"] = traceId
 
+        if let app = params.app, !app.isEmpty { queryParams["app"] = app }
+        if let lineItemId = params.lineItemId, !lineItemId.isEmpty { queryParams["li"] = lineItemId }
+        if let creativeId = params.creativeId, !creativeId.isEmpty { queryParams["c"] = creativeId }
+        if let adUnit = params.adUnit, !adUnit.isEmpty { queryParams["au"] = adUnit }
+        if let productSku = params.productSku, !productSku.isEmpty { queryParams["psku"] = productSku }
         if let keyword = params.keyword { queryParams["kw"] = keyword }
         if let anonymousId = anonymousId { queryParams["aid"] = anonymousId }
         if let userId = params.userId { queryParams["uid"] = userId }
         if let sessionId = sessionId { queryParams["s"] = sessionId }
 
-        return queryParams
+        // Payload ayrı tutuluyor, encode edilmeden gönderilecek
+        return (queryParams: queryParams, rawPayload: params.payload)
     }
 
-    private func buildURL(baseURL: String, path: String, queryParams: [String: String]) -> URL? {
+    private func buildURL(baseURL: String, path: String, queryParams: [String: String], rawPayload: String? = nil) -> URL? {
         var components = URLComponents(string: "\(baseURL)/\(path)")
 
         var queryItems: [URLQueryItem] = []
@@ -177,6 +169,14 @@ internal final class ApiService {
             queryItems.append(URLQueryItem(name: key, value: value))
         }
         components?.queryItems = queryItems
+
+        // Payload varsa, encode edilmeden manuel olarak URL'e ekleniyor
+        if let rawPayload = rawPayload, !rawPayload.isEmpty {
+            guard let url = components?.url else { return nil }
+            let separator = queryItems.isEmpty ? "?" : "&"
+            let payloadString = "\(separator)pyl=\(rawPayload)"
+            return URL(string: url.absoluteString + payloadString)
+        }
 
         return components?.url
     }
@@ -240,7 +240,6 @@ internal final class ApiService {
         eventParameter: EventParameter,
         params: EventParams,
         eventType: EventType,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
@@ -251,7 +250,6 @@ internal final class ApiService {
             eventName: eventName,
             eventParameter: eventParameter,
             params: params,
-            appName: appName,
             deviceId: deviceId,
             os: os,
             language: language,
@@ -272,7 +270,6 @@ internal final class ApiService {
             eventName: eventName,
             eventParameter: eventParameter,
             params: params,
-            appName: appName,
             deviceId: deviceId,
             os: os,
             language: language,
@@ -303,7 +300,6 @@ internal final class ApiService {
     func trackPerformanceEvent(
         eventType: PerformanceEventType,
         params: PerformanceEventParams,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
@@ -312,7 +308,6 @@ internal final class ApiService {
     ) -> Bool {
         let validationResult = validatePerformanceEventParams(
             params: params,
-            appName: appName,
             deviceId: deviceId,
             os: os,
             language: language,
@@ -329,9 +324,8 @@ internal final class ApiService {
         }
 
         let endpoint = eventType.endpoint
-        let queryParams = buildPerformanceQueryParams(
+        let (queryParams, rawPayload) = buildPerformanceQueryParams(
             params: params,
-            appName: appName,
             deviceId: deviceId,
             os: os,
             language: language,
@@ -339,7 +333,7 @@ internal final class ApiService {
             anonymousId: anonymousId
         )
 
-        guard let url = buildURL(baseURL: performanceBaseURL, path: endpoint, queryParams: queryParams) else {
+        guard let url = buildURL(baseURL: performanceBaseURL, path: endpoint, queryParams: queryParams, rawPayload: rawPayload) else {
             Logger.e("Failed to build URL for performance event: \(eventType)")
             return false
         }
