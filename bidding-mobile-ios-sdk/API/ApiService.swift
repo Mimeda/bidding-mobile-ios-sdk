@@ -169,15 +169,26 @@ internal final class ApiService {
             queryItems.append(URLQueryItem(name: key, value: value))
         }
         components?.queryItems = queryItems
-
-        // Payload varsa, encode edilmeden manuel olarak URL'e ekleniyor
+        
+        // Payload varsa, manuel olarak percent encoding yaparak query string'e ekliyoruz
+        // URLQueryItem kullanıldığında URLComponents + karakterini boşluk olarak yorumlayabiliyor
+        // Bu yüzden payload'ı manuel encode edip percentEncodedQuery ile ekliyoruz
         if let rawPayload = rawPayload, !rawPayload.isEmpty {
-            guard let url = components?.url else { return nil }
-            let separator = queryItems.isEmpty ? "?" : "&"
-            let payloadString = "\(separator)pyl=\(rawPayload)"
-            return URL(string: url.absoluteString + payloadString)
+            // Base64 karakterleri için özel encoding: + -> %2B, / -> %2F, = -> %3D
+            // URLComponents + karakterini boşluk olarak yorumladığı için manuel encode ediyoruz
+            var encodedPayload = rawPayload
+                .replacingOccurrences(of: "+", with: "%2B")
+                .replacingOccurrences(of: "/", with: "%2F")
+                .replacingOccurrences(of: "=", with: "%3D")
+            
+            // Mevcut query string'e payload'ı ekliyoruz
+            if let existingQuery = components?.percentEncodedQuery, !existingQuery.isEmpty {
+                components?.percentEncodedQuery = "\(existingQuery)&pyl=\(encodedPayload)"
+            } else {
+                components?.percentEncodedQuery = "pyl=\(encodedPayload)"
+            }
         }
-
+        
         return components?.url
     }
 
