@@ -168,16 +168,13 @@ internal final class ApiService {
         for (key, value) in queryParams where !value.isEmpty {
             queryItems.append(URLQueryItem(name: key, value: value))
         }
-        components?.queryItems = queryItems
-
-        // Payload varsa, encode edilmeden manuel olarak URL'e ekleniyor
+        
+        // Payload varsa, URLQueryItem ile ekleyerek otomatik URL encoding sağlanıyor
         if let rawPayload = rawPayload, !rawPayload.isEmpty {
-            guard let url = components?.url else { return nil }
-            let separator = queryItems.isEmpty ? "?" : "&"
-            let payloadString = "\(separator)pyl=\(rawPayload)"
-            return URL(string: url.absoluteString + payloadString)
+            queryItems.append(URLQueryItem(name: "pyl", value: rawPayload))
         }
-
+        
+        components?.queryItems = queryItems
         return components?.url
     }
 
