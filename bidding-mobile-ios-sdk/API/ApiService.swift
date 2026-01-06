@@ -253,7 +253,14 @@ internal final class ApiService {
             retryCount += 1
             if retryCount <= maxRetries {
                 let delay = baseDelay * (1 << (retryCount - 1))
-                Thread.sleep(forTimeInterval: Double(delay) / 1000.0)
+                // Main thread'de Thread.sleep() kullanmak uygulamayı block eder
+                // Bu yüzden main thread kontrolü yapıyoruz
+                if Thread.isMainThread {
+                    Logger.e("Thread.sleep() cannot be called on main thread, skipping retry delay")
+                    // Main thread'deyse delay yapmadan devam et (crash olmasın)
+                } else {
+                    Thread.sleep(forTimeInterval: Double(delay) / 1000.0)
+                }
             }
         }
 

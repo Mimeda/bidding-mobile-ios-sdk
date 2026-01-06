@@ -109,6 +109,12 @@ internal final class ApiClient {
 
     /// - Parameter url: Request URL
     func getSync(url: URL) -> Result<HTTPURLResponse, Error> {
+        // Main thread'de semaphore.wait() kullanmak uygulamayı block eder, bu yüzden hata döndürüyoruz
+        if Thread.isMainThread {
+            Logger.e("getSync cannot be called on main thread as it would block the app")
+            return .failure(ApiError.networkError(NSError(domain: "ApiClient", code: -1, userInfo: [NSLocalizedDescriptionKey: "getSync cannot be called on main thread"])))
+        }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
 
@@ -120,7 +126,7 @@ internal final class ApiClient {
         Logger.d("Request: GET \(sanitizeURLForLogging(url))")
 
         let semaphore = DispatchSemaphore(value: 0)
-        var result: Result<HTTPURLResponse, Error>!
+        var result: Result<HTTPURLResponse, Error>? = nil
 
         let task = session.dataTask(with: request) { _, response, error in
             defer { semaphore.signal() }
@@ -145,7 +151,13 @@ internal final class ApiClient {
         task.resume()
         semaphore.wait()
 
-        return result
+        // Result nil olmamalı ama güvenlik için kontrol ediyoruz
+        guard let finalResult = result else {
+            Logger.e("Unexpected error: result is nil after semaphore wait")
+            return .failure(ApiError.unknown)
+        }
+
+        return finalResult
     }
 
     /// URLSession invalidate

@@ -27,13 +27,14 @@ internal final class EventTracker {
         let savedSessionId = SecureStorage.getString(Constants.keySessionId)
         let savedTimestamp = SecureStorage.getLong(Constants.keySessionTimestamp, defaultValue: 0)
 
-        if savedSessionId == nil || (currentTime - savedTimestamp) > Int64(Constants.sessionDurationMs) {
+        if let sessionId = savedSessionId, (currentTime - savedTimestamp) <= Int64(Constants.sessionDurationMs) {
+            return sessionId
+        } else {
+            // Yeni session ID oluştur
             let newSessionId = UUID().uuidString
             SecureStorage.setString(Constants.keySessionId, value: newSessionId)
             SecureStorage.setLong(Constants.keySessionTimestamp, value: currentTime)
             return newSessionId
-        } else {
-            return savedSessionId!
         }
     }
 

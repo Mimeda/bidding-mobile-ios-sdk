@@ -7,37 +7,81 @@ internal struct InputValidator {
     private static let maxKeywordLength = 256
     private static let maxPayloadLength = 65536
 
-    private static var scriptPattern: NSRegularExpression {
-        // swiftlint:disable:next force_try
-        return try! NSRegularExpression(
+    /// Güvenli regex oluşturma - lazy static property kullanarak crash'i önliyoruz
+    private static func createRegex(pattern: String, options: NSRegularExpression.Options) -> NSRegularExpression? {
+        return try? NSRegularExpression(pattern: pattern, options: options)
+    }
+    
+    // Lazy static property'ler - sadece ilk kullanımda oluşturulur ve hata durumunda fallback kullanılır
+    private static let _scriptPattern: NSRegularExpression = {
+        if let pattern = createRegex(
             pattern: "<script[^>]*>.*?</script>",
             options: [.caseInsensitive, .dotMatchesLineSeparators]
-        )
+        ) {
+            return pattern
+        }
+        Logger.e("Failed to create scriptPattern regex, using fallback")
+        return createRegex(pattern: "^$", options: []) ?? createRegex(pattern: ".", options: []) ?? {
+            // Bu noktaya gelinmemeli ama yine de crash olmaması için bir şey döndürmeliyiz
+            Logger.e("Critical: All regex fallbacks failed for scriptPattern")
+            // Son çare: en basit geçerli pattern
+            return try! NSRegularExpression(pattern: ".", options: [])
+        }()
+    }()
+    
+    private static let _htmlTagPattern: NSRegularExpression = {
+        if let pattern = createRegex(pattern: "<[^>]+>", options: []) {
+            return pattern
+        }
+        Logger.e("Failed to create htmlTagPattern regex, using fallback")
+        return createRegex(pattern: "^$", options: []) ?? createRegex(pattern: ".", options: []) ?? {
+            Logger.e("Critical: All regex fallbacks failed for htmlTagPattern")
+            return try! NSRegularExpression(pattern: ".", options: [])
+        }()
+    }()
+    
+    private static let _sqlInjectionPattern: NSRegularExpression = {
+        if let pattern = createRegex(
+            pattern: "('|--|;|/\\*|\\*/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update)",
+            options: [.caseInsensitive]
+        ) {
+            return pattern
+        }
+        Logger.e("Failed to create sqlInjectionPattern regex, using fallback")
+        return createRegex(pattern: "^$", options: []) ?? createRegex(pattern: ".", options: []) ?? {
+            Logger.e("Critical: All regex fallbacks failed for sqlInjectionPattern")
+            return try! NSRegularExpression(pattern: ".", options: [])
+        }()
+    }()
+    
+    private static let _sqlInjectionPatternForProductList: NSRegularExpression = {
+        if let pattern = createRegex(
+            pattern: "('|--|/\\*|\\*/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update)",
+            options: [.caseInsensitive]
+        ) {
+            return pattern
+        }
+        Logger.e("Failed to create sqlInjectionPatternForProductList regex, using fallback")
+        return createRegex(pattern: "^$", options: []) ?? createRegex(pattern: ".", options: []) ?? {
+            Logger.e("Critical: All regex fallbacks failed for sqlInjectionPatternForProductList")
+            return try! NSRegularExpression(pattern: ".", options: [])
+        }()
+    }()
+
+    private static var scriptPattern: NSRegularExpression {
+        return _scriptPattern
     }
 
     private static var htmlTagPattern: NSRegularExpression {
-        // swiftlint:disable:next force_try
-        return try! NSRegularExpression(
-            pattern: "<[^>]+>",
-            options: []
-        )
+        return _htmlTagPattern
     }
 
     private static var sqlInjectionPattern: NSRegularExpression {
-        // swiftlint:disable:next force_try line_length
-        return try! NSRegularExpression(
-            pattern: "('|--|;|/\\*|\\*/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update)",
-            options: [.caseInsensitive]
-        )
+        return _sqlInjectionPattern
     }
 
     private static var sqlInjectionPatternForProductList: NSRegularExpression {
-        // swiftlint:disable:next force_try line_length
-        // SQL injection pattern without ; and : to allow them in product lists
-        return try! NSRegularExpression(
-            pattern: "('|--|/\\*|\\*/|@@|char|nchar|varchar|nvarchar|alter|begin|cast|create|cursor|declare|delete|drop|end|exec|execute|fetch|insert|kill|open|select|sys|sysobjects|syscolumns|table|update)",
-            options: [.caseInsensitive]
-        )
+        return _sqlInjectionPatternForProductList
     }
 
     /// - Parameters:
