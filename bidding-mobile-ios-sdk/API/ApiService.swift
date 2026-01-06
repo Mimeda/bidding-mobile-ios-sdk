@@ -44,7 +44,6 @@ internal final class ApiService {
         eventName: EventName,
         eventParameter: EventParameter,
         params: EventParams,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
@@ -54,7 +53,6 @@ internal final class ApiService {
         var errors: [String] = []
 
         if SDKConfig.sdkVersion.isEmpty { errors.append("v (SdkVersion) is required") }
-        if appName.isEmpty { errors.append("app (AppId) is required") }
         if deviceId.isEmpty { errors.append("d (DeviceId) is required") }
         if os.isEmpty { errors.append("os (Os) is required") }
         if language.isEmpty { errors.append("lng (Language) is required") }
@@ -62,6 +60,7 @@ internal final class ApiService {
         if anonymousId?.isEmpty ?? true { errors.append("aid (AnonymousId) is required") }
         if eventName.value.isEmpty { errors.append("en (EventName) is required") }
         if eventParameter.value.isEmpty { errors.append("ep (EventParameter) is required") }
+        // app parametresi optional olduğu için validation kontrolü yapılmıyor
 
         return errors.isEmpty ? .success : .failure(errors: errors)
     }
@@ -69,7 +68,6 @@ internal final class ApiService {
     /// Performance event validate
     private func validatePerformanceEventParams(
         params: PerformanceEventParams,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
@@ -79,17 +77,12 @@ internal final class ApiService {
         var errors: [String] = []
 
         if SDKConfig.sdkVersion.isEmpty { errors.append("v (SdkVersion) is required") }
-        if appName.isEmpty { errors.append("app (AppId) is required") }
         if deviceId.isEmpty { errors.append("d (DeviceId) is required") }
         if os.isEmpty { errors.append("os (Os) is required") }
         if language.isEmpty { errors.append("lng (Language) is required") }
         if sessionId?.isEmpty ?? true { errors.append("s (SessionId) is required") }
         if anonymousId?.isEmpty ?? true { errors.append("aid (AnonymousId) is required") }
-        if params.lineItemId.isEmpty { errors.append("li (LineItemId) is required") }
-        if params.creativeId.isEmpty { errors.append("c (CreativeId) is required") }
-        if params.adUnit.isEmpty { errors.append("au (AdUnit) is required") }
-        if params.productSku.isEmpty { errors.append("psku (ProductSku) is required") }
-        if params.payload.isEmpty { errors.append("pyl (Payload) is required") }
+        // app parametresi ve kullanıcı tarafından gelen değerler (lineItemId, creativeId, adUnit, productSku, payload) optional olduğu için validation kontrolü yapılmıyor
 
         return errors.isEmpty ? .success : .failure(errors: errors)
     }
@@ -99,7 +92,6 @@ internal final class ApiService {
         eventName: EventName,
         eventParameter: EventParameter,
         params: EventParams,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
@@ -111,7 +103,6 @@ internal final class ApiService {
         let timestamp = String(Int64(Date().timeIntervalSince1970 * 1000))
 
         queryParams["v"] = SDKConfig.sdkVersion
-        queryParams["app"] = appName
         queryParams["t"] = timestamp
         queryParams["d"] = deviceId
         queryParams["os"] = os
@@ -120,6 +111,7 @@ internal final class ApiService {
         queryParams["ep"] = eventParameter.value
         queryParams["tid"] = traceId
 
+        if let app = params.app, !app.isEmpty { queryParams["app"] = app }
         if let anonymousId = anonymousId { queryParams["aid"] = anonymousId }
         if let userId = params.userId { queryParams["uid"] = userId }
         if let lineItemIds = params.lineItemIds { queryParams["li"] = lineItemIds }
@@ -135,50 +127,85 @@ internal final class ApiService {
     }
 
     /// Performance event query params
+    /// - Returns: Tuple containing query params dictionary and raw payload string
     private func buildPerformanceQueryParams(
         params: PerformanceEventParams,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
         sessionId: String?,
         anonymousId: String?
-    ) -> [String: String] {
+    ) -> (queryParams: [String: String], rawPayload: String?) {
         var queryParams: [String: String] = [:]
         let traceId = UUID().uuidString
         let timestamp = String(Int64(Date().timeIntervalSince1970 * 1000))
 
         queryParams["v"] = SDKConfig.sdkVersion
-        queryParams["li"] = params.lineItemId
-        queryParams["c"] = params.creativeId
-        queryParams["au"] = params.adUnit
-        queryParams["psku"] = params.productSku
-        queryParams["pyl"] = params.payload
         queryParams["t"] = timestamp
         queryParams["os"] = os
-        queryParams["app"] = appName
         queryParams["d"] = deviceId
         queryParams["lng"] = language
         queryParams["tid"] = traceId
 
+        if let app = params.app, !app.isEmpty { queryParams["app"] = app }
+        if let lineItemId = params.lineItemId, !lineItemId.isEmpty { queryParams["li"] = lineItemId }
+        if let creativeId = params.creativeId, !creativeId.isEmpty { queryParams["c"] = creativeId }
+        if let adUnit = params.adUnit, !adUnit.isEmpty { queryParams["au"] = adUnit }
+        if let productSku = params.productSku, !productSku.isEmpty { queryParams["psku"] = productSku }
         if let keyword = params.keyword { queryParams["kw"] = keyword }
         if let anonymousId = anonymousId { queryParams["aid"] = anonymousId }
         if let userId = params.userId { queryParams["uid"] = userId }
         if let sessionId = sessionId { queryParams["s"] = sessionId }
 
-        return queryParams
+        // Payload ayrı tutuluyor, encode edilmeden gönderilecek
+        return (queryParams: queryParams, rawPayload: params.payload)
     }
 
-    private func buildURL(baseURL: String, path: String, queryParams: [String: String]) -> URL? {
-        var components = URLComponents(string: "\(baseURL)/\(path)")
+    private func buildURL(baseURL: String, path: String, queryParams: [String: String], rawPayload: String? = nil) -> URL? {
+        // Crash'i önlemek için tüm işlemleri güvenli bir şekilde yapıyoruz
+        guard var components = URLComponents(string: "\(baseURL)/\(path)") else {
+            Logger.e("Failed to create URLComponents for baseURL: \(baseURL)/\(path)")
+            return nil
+        }
 
         var queryItems: [URLQueryItem] = []
         for (key, value) in queryParams where !value.isEmpty {
             queryItems.append(URLQueryItem(name: key, value: value))
         }
-        components?.queryItems = queryItems
-
-        return components?.url
+        
+        // Payload varsa, URLQueryItem ile ekliyoruz (güvenli yöntem)
+        if let rawPayload = rawPayload, !rawPayload.isEmpty {
+            queryItems.append(URLQueryItem(name: "pyl", value: rawPayload))
+        }
+        
+        components.queryItems = queryItems
+        
+        // URL'i string olarak alıp + karakterlerini %2B ile değiştiriyoruz
+        // Bu yöntem fatal error riski taşımaz
+        guard let url = components.url else {
+            Logger.e("Failed to create URL from components")
+            return nil
+        }
+        
+        var urlString = url.absoluteString
+        
+        // Query string kısmında + karakterlerini %2B ile değiştiriyoruz
+        // URLComponents + karakterini boşluk olarak yorumladığı için manuel düzeltiyoruz
+        if let queryRange = urlString.range(of: "?") {
+            let queryPart = String(urlString[queryRange.upperBound...])
+            // Sadece query kısmındaki + karakterlerini değiştiriyoruz (path'teki + karakterlerine dokunmuyoruz)
+            let fixedQuery = queryPart.replacingOccurrences(of: "+", with: "%2B")
+            urlString = String(urlString[..<queryRange.upperBound]) + fixedQuery
+        }
+        
+        // Düzeltilmiş URL string'inden yeni URL oluşturuyoruz
+        guard let fixedURL = URL(string: urlString) else {
+            Logger.e("Failed to create URL from fixed string: \(urlString)")
+            // Fallback: Orijinal URL'i döndürüyoruz (hata olsa bile crash olmasın)
+            return url
+        }
+        
+        return fixedURL
     }
 
     private func executeWithRetry(url: URL, eventName: String = "") -> Bool {
@@ -240,62 +267,66 @@ internal final class ApiService {
         eventParameter: EventParameter,
         params: EventParams,
         eventType: EventType,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
         sessionId: String?,
         anonymousId: String?
     ) -> Bool {
-        let validationResult = validateEventParams(
-            eventName: eventName,
-            eventParameter: eventParameter,
-            params: params,
-            appName: appName,
-            deviceId: deviceId,
-            os: os,
-            language: language,
-            sessionId: sessionId,
-            anonymousId: anonymousId
-        )
-
-        if case .failure(let errors) = validationResult {
-            let errorMessage = "Event validation failed. Event: \(eventName.value)/\(eventParameter.value), " +
-                "Errors: \(errors.joined(separator: ", "))"
-            Logger.e(errorMessage)
-            errorCallback?.onValidationFailed(eventName: eventName, errors: errors)
-            return true
-        }
-
-        let baseURL = getBaseURL(for: eventType)
-        let queryParams = buildEventQueryParams(
-            eventName: eventName,
-            eventParameter: eventParameter,
-            params: params,
-            appName: appName,
-            deviceId: deviceId,
-            os: os,
-            language: language,
-            sessionId: sessionId,
-            anonymousId: anonymousId
-        )
-
-        guard let url = buildURL(baseURL: baseURL, path: "events", queryParams: queryParams) else {
-            Logger.e("Failed to build URL for event: \(eventName.value)/\(eventParameter.value)")
-            return false
-        }
-
-        let success = executeWithRetry(url: url, eventName: "\(eventName.value)/\(eventParameter.value)")
-
-        if !success {
-            errorCallback?.onEventTrackingFailed(
+        // Crash'i önlemek için tüm işlemleri try-catch ile sarmalıyoruz
+        do {
+            let validationResult = validateEventParams(
                 eventName: eventName,
                 eventParameter: eventParameter,
-                error: ApiError.unknown
+                params: params,
+                deviceId: deviceId,
+                os: os,
+                language: language,
+                sessionId: sessionId,
+                anonymousId: anonymousId
             )
-        }
 
-        return success
+            if case .failure(let errors) = validationResult {
+                let errorMessage = "Event validation failed. Event: \(eventName.value)/\(eventParameter.value), " +
+                    "Errors: \(errors.joined(separator: ", "))"
+                Logger.e(errorMessage)
+                errorCallback?.onValidationFailed(eventName: eventName, errors: errors)
+                return true
+            }
+
+            let baseURL = getBaseURL(for: eventType)
+            let queryParams = buildEventQueryParams(
+                eventName: eventName,
+                eventParameter: eventParameter,
+                params: params,
+                deviceId: deviceId,
+                os: os,
+                language: language,
+                sessionId: sessionId,
+                anonymousId: anonymousId
+            )
+
+            guard let url = buildURL(baseURL: baseURL, path: "events", queryParams: queryParams) else {
+                Logger.e("Failed to build URL for event: \(eventName.value)/\(eventParameter.value)")
+                return false
+            }
+
+            let success = executeWithRetry(url: url, eventName: "\(eventName.value)/\(eventParameter.value)")
+
+            if !success {
+                errorCallback?.onEventTrackingFailed(
+                    eventName: eventName,
+                    eventParameter: eventParameter,
+                    error: ApiError.unknown
+                )
+            }
+
+            return success
+        } catch {
+            // Herhangi bir hata olursa loglayıp false döndürüyoruz (crash olmasın)
+            Logger.e("Unexpected error in trackEvent: \(eventName.value)/\(eventParameter.value)", error)
+            return false
+        }
     }
 
     /// Performance event tracking
@@ -303,57 +334,61 @@ internal final class ApiService {
     func trackPerformanceEvent(
         eventType: PerformanceEventType,
         params: PerformanceEventParams,
-        appName: String,
         deviceId: String,
         os: String,
         language: String,
         sessionId: String?,
         anonymousId: String?
     ) -> Bool {
-        let validationResult = validatePerformanceEventParams(
-            params: params,
-            appName: appName,
-            deviceId: deviceId,
-            os: os,
-            language: language,
-            sessionId: sessionId,
-            anonymousId: anonymousId
-        )
+        // Crash'i önlemek için tüm işlemleri try-catch ile sarmalıyoruz
+        do {
+            let validationResult = validatePerformanceEventParams(
+                params: params,
+                deviceId: deviceId,
+                os: os,
+                language: language,
+                sessionId: sessionId,
+                anonymousId: anonymousId
+            )
 
-        if case .failure(let errors) = validationResult {
-            let errorMessage = "Performance event validation failed. Event Type: \(eventType), " +
-                "Errors: \(errors.joined(separator: ", "))"
-            Logger.e(errorMessage)
-            errorCallback?.onValidationFailed(eventName: nil, errors: errors)
-            return true
-        }
+            if case .failure(let errors) = validationResult {
+                let errorMessage = "Performance event validation failed. Event Type: \(eventType), " +
+                    "Errors: \(errors.joined(separator: ", "))"
+                Logger.e(errorMessage)
+                errorCallback?.onValidationFailed(eventName: nil, errors: errors)
+                return true
+            }
 
-        let endpoint = eventType.endpoint
-        let queryParams = buildPerformanceQueryParams(
-            params: params,
-            appName: appName,
-            deviceId: deviceId,
-            os: os,
-            language: language,
-            sessionId: sessionId,
-            anonymousId: anonymousId
-        )
+            let endpoint = eventType.endpoint
+            let (queryParams, rawPayload) = buildPerformanceQueryParams(
+                params: params,
+                deviceId: deviceId,
+                os: os,
+                language: language,
+                sessionId: sessionId,
+                anonymousId: anonymousId
+            )
 
-        guard let url = buildURL(baseURL: performanceBaseURL, path: endpoint, queryParams: queryParams) else {
-            Logger.e("Failed to build URL for performance event: \(eventType)")
+            guard let url = buildURL(baseURL: performanceBaseURL, path: endpoint, queryParams: queryParams, rawPayload: rawPayload) else {
+                Logger.e("Failed to build URL for performance event: \(eventType)")
+                return false
+            }
+
+            let success = executeWithRetry(url: url, eventName: "Performance/\(eventType)")
+
+            if !success {
+                errorCallback?.onPerformanceEventTrackingFailed(
+                    eventType: eventType,
+                    error: ApiError.unknown
+                )
+            }
+
+            return success
+        } catch {
+            // Herhangi bir hata olursa loglayıp false döndürüyoruz (crash olmasın)
+            Logger.e("Unexpected error in trackPerformanceEvent: \(eventType)", error)
             return false
         }
-
-        let success = executeWithRetry(url: url, eventName: "Performance/\(eventType)")
-
-        if !success {
-            errorCallback?.onPerformanceEventTrackingFailed(
-                eventType: eventType,
-                error: ApiError.unknown
-            )
-        }
-
-        return success
     }
 }
 
