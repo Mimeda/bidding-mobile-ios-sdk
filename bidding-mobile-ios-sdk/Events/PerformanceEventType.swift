@@ -1,6 +1,5 @@
 import Foundation
 
-/// Performance event enums
 public enum PerformanceEventType {
     case impression
     case click

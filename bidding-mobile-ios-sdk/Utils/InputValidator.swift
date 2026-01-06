@@ -7,12 +7,23 @@ internal struct InputValidator {
     private static let maxKeywordLength = 256
     private static let maxPayloadLength = 65536
 
-    /// Güvenli regex oluşturma - lazy static property kullanarak crash'i önliyoruz
     private static func createRegex(pattern: String, options: NSRegularExpression.Options) -> NSRegularExpression? {
         return try? NSRegularExpression(pattern: pattern, options: options)
     }
     
-    // Lazy static property'ler - sadece ilk kullanımda oluşturulur ve hata durumunda fallback kullanılır
+    private static func getFallbackRegex() -> NSRegularExpression {
+        if let regex = try? NSRegularExpression(pattern: "^$", options: []) {
+            return regex
+        }
+        if let regex = try? NSRegularExpression(pattern: ".", options: []) {
+            Logger.e("Using '.' as fallback regex")
+            return regex
+        }
+        Logger.e("Critical: All regex initialization failed")
+        // swiftlint:disable:next force_try
+        return try! NSRegularExpression(pattern: ".", options: [])
+    }
+    
     private static let _scriptPattern: NSRegularExpression = {
         if let pattern = createRegex(
             pattern: "<script[^>]*>.*?</script>",
@@ -21,12 +32,7 @@ internal struct InputValidator {
             return pattern
         }
         Logger.e("Failed to create scriptPattern regex, using fallback")
-        return createRegex(pattern: "^$", options: []) ?? createRegex(pattern: ".", options: []) ?? {
-            // Bu noktaya gelinmemeli ama yine de crash olmaması için bir şey döndürmeliyiz
-            Logger.e("Critical: All regex fallbacks failed for scriptPattern")
-            // Son çare: en basit geçerli pattern
-            return try! NSRegularExpression(pattern: ".", options: [])
-        }()
+        return createRegex(pattern: "^$", options: []) ?? getFallbackRegex()
     }()
     
     private static let _htmlTagPattern: NSRegularExpression = {
@@ -34,10 +40,7 @@ internal struct InputValidator {
             return pattern
         }
         Logger.e("Failed to create htmlTagPattern regex, using fallback")
-        return createRegex(pattern: "^$", options: []) ?? createRegex(pattern: ".", options: []) ?? {
-            Logger.e("Critical: All regex fallbacks failed for htmlTagPattern")
-            return try! NSRegularExpression(pattern: ".", options: [])
-        }()
+        return createRegex(pattern: "^$", options: []) ?? getFallbackRegex()
     }()
     
     private static let _sqlInjectionPattern: NSRegularExpression = {
@@ -48,10 +51,7 @@ internal struct InputValidator {
             return pattern
         }
         Logger.e("Failed to create sqlInjectionPattern regex, using fallback")
-        return createRegex(pattern: "^$", options: []) ?? createRegex(pattern: ".", options: []) ?? {
-            Logger.e("Critical: All regex fallbacks failed for sqlInjectionPattern")
-            return try! NSRegularExpression(pattern: ".", options: [])
-        }()
+        return createRegex(pattern: "^$", options: []) ?? getFallbackRegex()
     }()
     
     private static let _sqlInjectionPatternForProductList: NSRegularExpression = {
@@ -62,10 +62,7 @@ internal struct InputValidator {
             return pattern
         }
         Logger.e("Failed to create sqlInjectionPatternForProductList regex, using fallback")
-        return createRegex(pattern: "^$", options: []) ?? createRegex(pattern: ".", options: []) ?? {
-            Logger.e("Critical: All regex fallbacks failed for sqlInjectionPatternForProductList")
-            return try! NSRegularExpression(pattern: ".", options: [])
-        }()
+        return createRegex(pattern: "^$", options: []) ?? getFallbackRegex()
     }()
 
     private static var scriptPattern: NSRegularExpression {
@@ -84,10 +81,6 @@ internal struct InputValidator {
         return _sqlInjectionPatternForProductList
     }
 
-    /// - Parameters:
-    ///   - value: String value to sanitize
-    ///   - maxLength: Maximum length (default: 1024)
-    /// - Returns: Sanitized string or nil if input is nil/empty
     static func sanitizeString(_ value: String?, maxLength: Int = maxStringFieldLength) -> String? {
         guard let value = value else {
             return nil
@@ -128,8 +121,6 @@ internal struct InputValidator {
         return sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// - Parameter value: String value
-    /// - Returns: Sanitized string or nil if input is nil/empty
     private static func sanitizeSqlInjection(_ value: String?) -> String? {
         guard let value = value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return value
@@ -144,8 +135,6 @@ internal struct InputValidator {
         )
     }
 
-    /// - Parameter value: String value to check
-    /// - Returns: true if contains SQL injection patterns
     static func containsSqlInjection(_ value: String?) -> Bool {
         guard let value = value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return false
@@ -155,20 +144,14 @@ internal struct InputValidator {
         return sqlInjectionPattern.firstMatch(in: value, options: [], range: range) != nil
     }
 
-    /// - Parameter userId: User ID string
-    /// - Returns: Sanitized user ID or nil
     static func sanitizeUserId(_ userId: String?) -> String? {
         return sanitizeString(userId, maxLength: maxUserIdLength)
     }
 
-    /// - Parameter keyword: Keyword string
-    /// - Returns: Sanitized keyword or nil
     static func sanitizeKeyword(_ keyword: String?) -> String? {
         return sanitizeString(keyword, maxLength: maxKeywordLength)
     }
 
-    /// - Parameter productList: Product list string
-    /// - Returns: Sanitized product list or nil
     static func sanitizeProductList(_ productList: String?) -> String? {
         guard let productList = productList else {
             return nil
@@ -199,7 +182,6 @@ internal struct InputValidator {
 
         sanitized = sanitized.replacingOccurrences(of: "\u{0000}", with: "")
 
-        // SQL injection kontrolü (; ve : karakterlerine izin veriliyor)
         let sqlRange = NSRange(sanitized.startIndex..<sanitized.endIndex, in: sanitized)
         sanitized = sqlInjectionPatternForProductList.stringByReplacingMatches(
             in: sanitized,
@@ -211,8 +193,6 @@ internal struct InputValidator {
         return sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// - Parameter payload: Payload string
-    /// - Returns: Sanitized payload or nil
     static func sanitizePayload(_ payload: String?) -> String? {
         return sanitizeString(payload, maxLength: maxPayloadLength)
     }

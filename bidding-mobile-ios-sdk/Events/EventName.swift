@@ -1,6 +1,5 @@
 import Foundation
 
-/// Event enums
 public enum EventName: String {
     case home
     case listing
