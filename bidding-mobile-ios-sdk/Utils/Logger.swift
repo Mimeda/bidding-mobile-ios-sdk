@@ -20,7 +20,6 @@ internal struct Logger {
         return SDKConfig.debugLogging
     }
     
-    /// - Parameter enabled: true to enable debug logging, false to disable
     static func setDebugLogging(_ enabled: Bool) {
         lock.lock()
         defer { lock.unlock() }
@@ -32,9 +31,6 @@ internal struct Logger {
         os_log("[INFO] %{public}@", log: osLog, type: .info, message)
     }
     
-    /// - Parameters:
-    ///   - message: Log message
-    ///   - error: optional hata
     static func e(_ message: String, _ error: Error? = nil) {
         guard isDebugEnabled else { return }
         if let error = error {
@@ -44,13 +40,11 @@ internal struct Logger {
         }
     }
     
-    /// - Parameter message: Log message
     static func s(_ message: String) {
         guard isDebugEnabled else { return }
         os_log("[SUCCESS] %{public}@", log: osLog, type: .info, message)
     }
     
-    /// - Parameter message: Log message
     static func d(_ message: String) {
         guard isDebugEnabled else { return }
         os_log("[DEBUG] %{public}@", log: osLog, type: .debug, message)

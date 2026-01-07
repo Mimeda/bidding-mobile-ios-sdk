@@ -11,9 +11,6 @@ public final class MimedaSDK {
     
     private init() {}
     
-    ///   - apiKey: API key
-    ///   - environment: default: production
-    ///   - errorCallback: Error callback
     public func initialize(
         apiKey: String,
         environment: SDKEnvironment = .production,
@@ -50,9 +47,6 @@ public final class MimedaSDK {
         Logger.s("MimedaSDK initialized successfully. Package: \(appPackageName), Environment: \(environment)")
     }
    
-    ///   - eventName: Event name
-    ///   - eventParameter: Event params
-    ///   - params: Optional params
     public func trackEvent(
         eventName: EventName,
         eventParameter: EventParameter,
@@ -81,7 +75,6 @@ public final class MimedaSDK {
         )
     }
     
-    ///   - params: Performance event params
     public func trackPerformanceImpression(
         params: PerformanceEventParams
     ) {
@@ -106,7 +99,6 @@ public final class MimedaSDK {
         )
     }
     
-    ///   - params: Performance event params
     public func trackPerformanceClick(
         params: PerformanceEventParams
     ) {
@@ -131,14 +123,12 @@ public final class MimedaSDK {
         )
     }
 
-    /// - Returns: true if SDK is initialized, false otherwise
     public func isInitialized() -> Bool {
         lock.lock()
         defer { lock.unlock() }
         return initialized
     }
     
-    /// - Parameter enabled: true to enable debug logging, false to disable
     public func setDebugLogging(_ enabled: Bool) {
         Logger.setDebugLogging(enabled)
     }

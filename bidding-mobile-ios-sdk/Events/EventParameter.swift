@@ -1,6 +1,5 @@
 import Foundation
 
-/// Event enums
 public enum EventParameter: String {
     case view = "view"
     case addToCart = "addtocart"

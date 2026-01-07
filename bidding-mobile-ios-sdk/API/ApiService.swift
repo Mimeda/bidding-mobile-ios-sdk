@@ -5,7 +5,6 @@ private enum ValidationResult {
     case failure(errors: [String])
 }
 
-/// API service - event ve performance tracking
 internal final class ApiService {
 
     private let client: ApiClient
@@ -15,9 +14,6 @@ internal final class ApiService {
     private let eventBaseURL: String
     private let performanceBaseURL: String
 
-    ///   - client: HTTP client
-    ///   - environment: environment
-    ///   - errorCallback: error callback
     init(
         client: ApiClient,
         environment: SDKEnvironment,
@@ -30,7 +26,6 @@ internal final class ApiService {
         self.performanceBaseURL = environment.performanceBaseURL
     }
 
-    /// - Parameter eventType: Event type
     private func getBaseURL(for eventType: EventType) -> String {
         switch eventType {
         case .event:
@@ -60,12 +55,9 @@ internal final class ApiService {
         if anonymousId?.isEmpty ?? true { errors.append("aid (AnonymousId) is required") }
         if eventName.value.isEmpty { errors.append("en (EventName) is required") }
         if eventParameter.value.isEmpty { errors.append("ep (EventParameter) is required") }
-        // app parametresi optional olduğu için validation kontrolü yapılmıyor
-
         return errors.isEmpty ? .success : .failure(errors: errors)
     }
 
-    /// Performance event validate
     private func validatePerformanceEventParams(
         params: PerformanceEventParams,
         deviceId: String,
@@ -82,12 +74,10 @@ internal final class ApiService {
         if language.isEmpty { errors.append("lng (Language) is required") }
         if sessionId?.isEmpty ?? true { errors.append("s (SessionId) is required") }
         if anonymousId?.isEmpty ?? true { errors.append("aid (AnonymousId) is required") }
-        // app parametresi ve kullanıcı tarafından gelen değerler (lineItemId, creativeId, adUnit, productSku, payload) optional olduğu için validation kontrolü yapılmıyor
 
         return errors.isEmpty ? .success : .failure(errors: errors)
     }
 
-    /// Event query params
     private func buildEventQueryParams(
         eventName: EventName,
         eventParameter: EventParameter,
@@ -126,8 +116,6 @@ internal final class ApiService {
         return queryParams
     }
 
-    /// Performance event query params
-    /// - Returns: Tuple containing query params dictionary and raw payload string
     private func buildPerformanceQueryParams(
         params: PerformanceEventParams,
         deviceId: String,
@@ -157,12 +145,10 @@ internal final class ApiService {
         if let userId = params.userId { queryParams["uid"] = userId }
         if let sessionId = sessionId { queryParams["s"] = sessionId }
 
-        // Payload ayrı tutuluyor, encode edilmeden gönderilecek
         return (queryParams: queryParams, rawPayload: params.payload)
     }
 
     private func buildURL(baseURL: String, path: String, queryParams: [String: String], rawPayload: String? = nil) -> URL? {
-        // Crash'i önlemek için tüm işlemleri güvenli bir şekilde yapıyoruz
         guard var components = URLComponents(string: "\(baseURL)/\(path)") else {
             Logger.e("Failed to create URLComponents for baseURL: \(baseURL)/\(path)")
             return nil
@@ -173,15 +159,12 @@ internal final class ApiService {
             queryItems.append(URLQueryItem(name: key, value: value))
         }
         
-        // Payload varsa, URLQueryItem ile ekliyoruz (güvenli yöntem)
         if let rawPayload = rawPayload, !rawPayload.isEmpty {
             queryItems.append(URLQueryItem(name: "pyl", value: rawPayload))
         }
         
         components.queryItems = queryItems
         
-        // URL'i string olarak alıp + karakterlerini %2B ile değiştiriyoruz
-        // Bu yöntem fatal error riski taşımaz
         guard let url = components.url else {
             Logger.e("Failed to create URL from components")
             return nil
@@ -189,19 +172,15 @@ internal final class ApiService {
         
         var urlString = url.absoluteString
         
-        // Query string kısmında + karakterlerini %2B ile değiştiriyoruz
-        // URLComponents + karakterini boşluk olarak yorumladığı için manuel düzeltiyoruz
+        // URLComponents + karakterini boşluk olarak yorumladığı için %2B ile değiştiriyoruz
         if let queryRange = urlString.range(of: "?") {
             let queryPart = String(urlString[queryRange.upperBound...])
-            // Sadece query kısmındaki + karakterlerini değiştiriyoruz (path'teki + karakterlerine dokunmuyoruz)
             let fixedQuery = queryPart.replacingOccurrences(of: "+", with: "%2B")
             urlString = String(urlString[..<queryRange.upperBound]) + fixedQuery
         }
         
-        // Düzeltilmiş URL string'inden yeni URL oluşturuyoruz
         guard let fixedURL = URL(string: urlString) else {
             Logger.e("Failed to create URL from fixed string: \(urlString)")
-            // Fallback: Orijinal URL'i döndürüyoruz (hata olsa bile crash olmasın)
             return url
         }
         
@@ -253,14 +232,17 @@ internal final class ApiService {
             retryCount += 1
             if retryCount <= maxRetries {
                 let delay = baseDelay * (1 << (retryCount - 1))
-                Thread.sleep(forTimeInterval: Double(delay) / 1000.0)
+                if Thread.isMainThread {
+                    Logger.e("Thread.sleep() cannot be called on main thread, skipping retry delay")
+                } else {
+                    Thread.sleep(forTimeInterval: Double(delay) / 1000.0)
+                }
             }
         }
 
         return false
     }
 
-    /// Event tracking
     @discardableResult
     func trackEvent(
         eventName: EventName,
@@ -273,7 +255,6 @@ internal final class ApiService {
         sessionId: String?,
         anonymousId: String?
     ) -> Bool {
-        // Crash'i önlemek için tüm işlemleri try-catch ile sarmalıyoruz
         do {
             let validationResult = validateEventParams(
                 eventName: eventName,
@@ -323,13 +304,11 @@ internal final class ApiService {
 
             return success
         } catch {
-            // Herhangi bir hata olursa loglayıp false döndürüyoruz (crash olmasın)
             Logger.e("Unexpected error in trackEvent: \(eventName.value)/\(eventParameter.value)", error)
             return false
         }
     }
 
-    /// Performance event tracking
     @discardableResult
     func trackPerformanceEvent(
         eventType: PerformanceEventType,
@@ -340,7 +319,6 @@ internal final class ApiService {
         sessionId: String?,
         anonymousId: String?
     ) -> Bool {
-        // Crash'i önlemek için tüm işlemleri try-catch ile sarmalıyoruz
         do {
             let validationResult = validatePerformanceEventParams(
                 params: params,
@@ -385,7 +363,6 @@ internal final class ApiService {
 
             return success
         } catch {
-            // Herhangi bir hata olursa loglayıp false döndürüyoruz (crash olmasın)
             Logger.e("Unexpected error in trackPerformanceEvent: \(eventType)", error)
             return false
         }
