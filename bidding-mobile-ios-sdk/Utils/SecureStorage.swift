@@ -6,8 +6,24 @@ internal struct SecureStorage {
 
     private static let serviceName = "com.mimeda.sdk"
     private static let suiteName = "com.mimeda.sdk.storage"
+    private static let installMarkerKey = "com.mimeda.sdk.install_marker"
 
     private static let accessibility: CFString = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+
+    static func checkAndHandleFreshInstall() {
+        let marker = UserDefaults.standard.bool(forKey: installMarkerKey)
+        
+        if !marker {
+            Logger.i("Fresh install detected, clearing previous session data from Keychain")
+            _ = removeFromKeychain(key: "anonymous_id")
+            _ = removeFromKeychain(key: "session_id")
+            _ = removeFromKeychain(key: "session_timestamp")
+            
+            UserDefaults.standard.set(true, forKey: installMarkerKey)
+            UserDefaults.standard.synchronize()
+            Logger.i("Install marker set")
+        }
+    }
 
     private static func getFromKeychain(key: String) -> String? {
         let query: [String: Any] = [

@@ -24,6 +24,8 @@ public final class MimedaSDK {
             return
         }
         
+        SecureStorage.checkAndHandleFreshInstall()
+        
         guard !apiKey.trimmingCharacters(in: .whitespaces).isEmpty else {
             Logger.e("API key is required but was not provided")
             return
