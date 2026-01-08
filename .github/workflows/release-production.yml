@@ -177,37 +177,33 @@ jobs:
           git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
       
-      - name: Push binary Package.swift and XCFramework to public repo
+      - name: Push binary Package.swift to public repo
         run: |
           # Clone public repo to a temporary directory
           TEMP_DIR=$(mktemp -d)
           git clone https://${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/Mimeda/bidding-mobile-ios-sdk-release.git "$TEMP_DIR"
           cd "$TEMP_DIR"
           
-          # Copy binary Package.swift and XCFramework zip
+          # Copy binary Package.swift (XCFramework will be uploaded as release asset only)
           cp "${{ github.workspace }}/Package.swift" .
-          cp "${{ github.workspace }}/bidding_mobile_ios_sdk.xcframework.zip" .
-          # Note: XCFramework will be uploaded as a release asset only
           
           # Commit and push to main/master branch first
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout main 2>/dev/null || git checkout master
-          git add Package.swift bidding_mobile_ios_sdk.xcframework.zip
-          git commit -m "Add binary Package.swift and XCFramework for ${{ steps.version.outputs.tag }}" || echo "No changes to commit"
           git add Package.swift
           git commit -m "Update Package.swift for ${{ steps.version.outputs.tag }}" || echo "No changes to commit"
-          git push origin HEAD
+          git push origin HEAD || echo "Push may have failed or no changes"
           
           # Create tag on this commit
           git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
-          echo "✅ Tag ${{ steps.version.outputs.tag }} created and pushed"
+          echo "✅ Tag ${{ steps.version.outputs.tag }} created and pushed to public repo"
           
           # Cleanup
           cd "${{ github.workspace }}"
           rm -rf "$TEMP_DIR"
-          echo "✅ Package.swift and XCFramework pushed to public repo with tag"
+          echo "✅ Package.swift pushed to public repo with tag"
       
       - name: Create GitHub Release (Private Repo)
         uses: softprops/action-gh-release@v1
