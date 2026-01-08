@@ -195,10 +195,31 @@ jobs:
           git commit -m "Update Package.swift for ${{ steps.version.outputs.tag }}" || echo "No changes to commit"
           git push origin HEAD || echo "Push may have failed or no changes"
           
-          # Create tag on this commit
-          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
-          echo "✅ Tag ${{ steps.version.outputs.tag }} created and pushed to public repo"
+          # Now create tag on this commit
+          if ! git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+            git push origin "${{ steps.version.outputs.tag }}"
+            echo "✅ Tag ${{ steps.version.outputs.tag }} created and pushed to public repo"
+            
+            # Verify tag points to current commit
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            TAG_COMMIT=$(git rev-parse "${{ steps.version.outputs.tag }}")
+            if [ "$CURRENT_COMMIT" = "$TAG_COMMIT" ]; then
+              echo "✅ Tag points to correct commit: $CURRENT_COMMIT"
+            else
+              echo "⚠️ Warning: Tag points to different commit. Current: $CURRENT_COMMIT, Tag: $TAG_COMMIT"
+            fi
+          else
+            echo "⚠️ Tag ${{ steps.version.outputs.tag }} already exists"
+            # Verify existing tag points to current commit
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            TAG_COMMIT=$(git rev-parse "${{ steps.version.outputs.tag }}" 2>/dev/null || echo "")
+            if [ -n "$TAG_COMMIT" ] && [ "$CURRENT_COMMIT" = "$TAG_COMMIT" ]; then
+              echo "✅ Existing tag points to correct commit: $CURRENT_COMMIT"
+            elif [ -n "$TAG_COMMIT" ]; then
+              echo "⚠️ Warning: Existing tag points to different commit. Current: $CURRENT_COMMIT, Tag: $TAG_COMMIT"
+            fi
+          fi
           
           # Cleanup
           cd "${{ github.workspace }}"
