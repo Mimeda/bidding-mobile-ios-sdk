@@ -89,6 +89,11 @@ internal final class EventTracker {
 
         serialQueue.async { [weak self] in
             guard let self = self else { return }
+            
+            // TEST: 3 saniye bekle - main thread bloklanma testi
+            Logger.i("⏳ Event tracking başladı - 3 saniye bekleniyor...")
+            Thread.sleep(forTimeInterval: 3.0)
+            Logger.i("✅ 3 saniye bekleme tamamlandı")
 
             let sanitizedParams = self.sanitizeParams(params)
             let sessionId = self.getOrCreateSessionId()
@@ -123,6 +128,11 @@ internal final class EventTracker {
 
         serialQueue.async { [weak self] in
             guard let self = self else { return }
+            
+            // TEST: 3 saniye bekle - main thread bloklanma testi
+            Logger.i("⏳ Performance event tracking başladı - 3 saniye bekleniyor...")
+            Thread.sleep(forTimeInterval: 3.0)
+            Logger.i("✅ 3 saniye bekleme tamamlandı")
 
             let sanitizedParams = self.sanitizePerformanceParams(params)
             let sessionId = self.getOrCreateSessionId()
