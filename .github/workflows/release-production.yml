@@ -170,7 +170,19 @@ jobs:
           echo "✅ Binary Package.swift created with checksum"
           cat Package.swift
       
-      - name: Create tag
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Tag ${{ steps.version.outputs.tag }} already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Tag ${{ steps.version.outputs.tag }} does not exist"
+          fi
+      
+      - name: Create tag if not exists
+        if: steps.check_tag.outputs.exists == 'false'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -199,26 +211,9 @@ jobs:
           if ! git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
             git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
             git push origin "${{ steps.version.outputs.tag }}"
-            echo "✅ Tag ${{ steps.version.outputs.tag }} created and pushed to public repo"
-            
-            # Verify tag points to current commit
-            CURRENT_COMMIT=$(git rev-parse HEAD)
-            TAG_COMMIT=$(git rev-parse "${{ steps.version.outputs.tag }}")
-            if [ "$CURRENT_COMMIT" = "$TAG_COMMIT" ]; then
-              echo "✅ Tag points to correct commit: $CURRENT_COMMIT"
-            else
-              echo "⚠️ Warning: Tag points to different commit. Current: $CURRENT_COMMIT, Tag: $TAG_COMMIT"
-            fi
+            echo "✅ Tag ${{ steps.version.outputs.tag }} created and pushed"
           else
             echo "⚠️ Tag ${{ steps.version.outputs.tag }} already exists"
-            # Verify existing tag points to current commit
-            CURRENT_COMMIT=$(git rev-parse HEAD)
-            TAG_COMMIT=$(git rev-parse "${{ steps.version.outputs.tag }}" 2>/dev/null || echo "")
-            if [ -n "$TAG_COMMIT" ] && [ "$CURRENT_COMMIT" = "$TAG_COMMIT" ]; then
-              echo "✅ Existing tag points to correct commit: $CURRENT_COMMIT"
-            elif [ -n "$TAG_COMMIT" ]; then
-              echo "⚠️ Warning: Existing tag points to different commit. Current: $CURRENT_COMMIT, Tag: $TAG_COMMIT"
-            fi
           fi
           
           # Cleanup
