@@ -2,7 +2,7 @@ import Foundation
 
 internal struct SDKConfig {
 
-    static let sdkVersion = "1.0.3"
+    static let sdkVersion = "1.0.4"
 
     static let connectTimeout: TimeInterval = 10
 
