@@ -157,6 +157,78 @@ MimedaSDK.shared.trackEvent(
 )
 ```
 
+#### Event Örnekleri
+
+```swift
+// Home / View - Ana sayfa görüntüleme
+MimedaSDK.shared.trackEvent(
+    eventName: .home,
+    eventParameter: .view,
+    params: EventParams()
+)
+
+// Home / AddtoCart - Ana sayfadan sepete ekleme
+MimedaSDK.shared.trackEvent(
+    eventName: .home,
+    eventParameter: .addToCart,
+    params: EventParams(
+        lineItemIds: "item123",
+        productList: "08060192:1:10.50"
+    )
+)
+
+// Listing / View - Ürün listesi görüntüleme
+MimedaSDK.shared.trackEvent(
+    eventName: .listing,
+    eventParameter: .view,
+    params: EventParams(
+        categoryId: "electronics",
+        totalRowCount: 50
+    )
+)
+
+// Search / View - Arama sonuçları görüntüleme
+MimedaSDK.shared.trackEvent(
+    eventName: .search,
+    eventParameter: .view,
+    params: EventParams(
+        keyword: "telefon",
+        categoryId: "electronics"
+    )
+)
+
+// PDP / View - Ürün detay sayfası görüntüleme
+MimedaSDK.shared.trackEvent(
+    eventName: .pdp,
+    eventParameter: .view,
+    params: EventParams(
+        lineItemIds: "item123",
+        productList: "08060192:1:10.50"
+    )
+)
+
+// Cart / View - Sepet sayfası görüntüleme
+MimedaSDK.shared.trackEvent(
+    eventName: .cart,
+    eventParameter: .view,
+    params: EventParams(
+        lineItemIds: "item123,item456",
+        productList: "08060192:1:10.50,08060193:2:25.00"
+    )
+)
+
+// Purchase / Success - Satın alma işlemi başarılı
+MimedaSDK.shared.trackEvent(
+    eventName: .purchase,
+    eventParameter: .success,
+    params: EventParams(
+        transactionId: "txn789",
+        lineItemIds: "item123,item456",
+        productList: "08060192:1:10.50,08060193:2:25.00"
+    )
+)
+```
+
 ### 4. Performance Event Tracking
 
 Reklam performans metriklerini takip edin. Tüm parametreler opsiyoneldir:
@@ -181,6 +253,31 @@ MimedaSDK.shared.trackPerformanceImpression(params: params)
 
 // Click (Tıklama) gönderme
 MimedaSDK.shared.trackPerformanceClick(params: params)
+```
+
+#### Performance Event Örnekleri
+
+```swift
+// Impression (Görüntülenme)
+MimedaSDK.shared.trackPerformanceImpression(
+    params: PerformanceEventParams(
+        lineItemId: "line123",
+        creativeId: "creative456",
+        adUnit: "banner_top",
+        productSku: "SKU789"
+    )
+)
+
+// Click (Tıklama)
+MimedaSDK.shared.trackPerformanceClick(
+    params: PerformanceEventParams(
+        lineItemId: "line123",
+        creativeId: "creative456",
+        adUnit: "banner_top",
+        productSku: "SKU789",
+        payload: "custom_data"
+    )
+)
 ```
 
 ## API Referansı
